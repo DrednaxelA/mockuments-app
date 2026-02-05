@@ -194,6 +194,8 @@ export default function App() {
         setManualData(prev => ({ ...prev, supplier: 'Acme Corp' }));
     } else if (activeCategory === 'COSTS') {
         setManualData(prev => ({ ...prev, supplier: "Joe's Coffee" }));
+    } else if (activeCategory === 'BANK') {
+        setManualData(prev => ({ ...prev, supplier: "Global Bank Inc." }));
     }
   }, [activeCategory]);
 
@@ -224,6 +226,31 @@ export default function App() {
     }
   }, [region, docType, mode, activeCategory, manualData]);
 
+  useEffect(() => {
+    const iconColor = isDarkMode ? '#121212' : '#ffffff';
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+        <rect width="32" height="32" rx="6" fill="#FF5A02"/>
+        <g transform="translate(6, 6)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+            <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+            <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+            <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+            <line x1="7" x2="17" y1="12" y2="12" />
+          </svg>
+        </g>
+      </svg>
+    `.trim();
+    const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+    link.type = 'image/svg+xml';
+    link.rel = 'icon';
+    link.href = `data:image/svg+xml;base64,${btoa(svg)}`;
+    if (!link.parentNode) {
+      document.head.appendChild(link);
+    }
+  }, [isDarkMode]);
+
   const generateBankData = () => {
     const rData = DUMMY_DATA[region];
     const openingBal = Math.random() * 5000 + 1000;
@@ -231,16 +258,28 @@ export default function App() {
     let runningBal = openingBal;
     const transactions = [];
 
+    let bankName = getRandomElement(rData.suppliers.filter(s => s.includes('Bank') || s.includes('Paribas') || s.includes('Barclays') || s.includes('Commonwealth') || s.includes('Chase')));
+    let accountNum = Math.floor(Math.random() * 1000000000);
+    let accountName = "John Doe Trading";
+    let date = new Date();
+
+    if (mode === 'MANUAL') {
+        if (manualData.supplier) bankName = manualData.supplier;
+        if (manualData.bankAccountNum) accountNum = manualData.bankAccountNum;
+        if (manualData.bankAccountName) accountName = manualData.bankAccountName;
+        if (manualData.date) date = new Date(manualData.date);
+    }
+
     for (let i = 0; i < numTxns; i++) {
       const isCredit = Math.random() > 0.7;
       const amount = Math.random() * 200 + 10;
       runningBal = isCredit ? runningBal + amount : runningBal - amount;
       
-      const date = new Date();
-      date.setDate(date.getDate() - (numTxns - i));
+      const txnDate = new Date(date);
+      txnDate.setDate(txnDate.getDate() - (numTxns - i));
 
       transactions.push({
-        date: date,
+        date: txnDate,
         desc: isCredit ? "Deposit" : getRandomElement(["Payment", "Direct Debit", "Card Purchase", "ATM"]),
         debit: isCredit ? "" : amount.toFixed(2),
         credit: isCredit ? amount.toFixed(2) : "",
@@ -250,14 +289,15 @@ export default function App() {
 
     return {
       type: 'BANK',
-      supplier: getRandomElement(rData.suppliers.filter(s => s.includes('Bank') || s.includes('Paribas') || s.includes('Barclays') || s.includes('Commonwealth') || s.includes('Chase'))),
+      supplier: bankName,
       address: getRandomElement(rData.addresses),
-      date: new Date(),
+      date: date,
       total: runningBal.toFixed(2), 
       tax: '0.00',
       lines: transactions,
       meta: {
-        accountNum: Math.floor(Math.random() * 1000000000),
+        accountNum: accountNum,
+        accountName: accountName,
         sortCode: `${Math.floor(Math.random()*99)}-${Math.floor(Math.random()*99)}-${Math.floor(Math.random()*99)}`,
         openingBalance: openingBal.toFixed(2)
       }
@@ -270,8 +310,14 @@ export default function App() {
     let totalDue = 0;
     const invoices = [];
     
-    const supplierName = getRandomElement(rData.suppliers);
+    let supplierName = getRandomElement(rData.suppliers);
     const supplierAddr = getRandomElement(rData.addresses);
+    let date = new Date();
+
+    if (mode === 'MANUAL') {
+        if (manualData.supplier) supplierName = manualData.supplier;
+        if (manualData.date) date = new Date(manualData.date);
+    }
 
     for (let i = 0; i < numInvoices; i++) {
       const amount = Math.random() * 500 + 50;
@@ -291,7 +337,7 @@ export default function App() {
       type: 'STATEMENT',
       supplier: supplierName,
       address: supplierAddr,
-      date: new Date(),
+      date: date,
       total: totalDue.toFixed(2),
       tax: '0.00',
       lines: invoices,
@@ -743,7 +789,7 @@ export default function App() {
       <div className="bg-gray-100 p-4 mb-8 flex justify-between text-sm rounded relative z-10">
          <div>
             <div className="text-gray-500 text-xs">Account Name</div>
-            <div className="font-bold">John Doe Trading</div>
+            <div className="font-bold">{previewData.meta.accountName || "John Doe Trading"}</div>
          </div>
          <div>
             <div className="text-gray-500 text-xs">Sort Code</div>
@@ -858,6 +904,13 @@ export default function App() {
           ::-webkit-scrollbar-track { background: transparent; }
           ::-webkit-scrollbar-thumb { background: #55555540; border-radius: 3px; }
           ::-webkit-scrollbar-thumb:hover { background: #55555580; }
+
+          ${isDarkMode ? `
+            ::-webkit-calendar-picker-indicator {
+              filter: invert(53%) sepia(93%) saturate(3351%) hue-rotate(346deg) brightness(100%) contrast(101%);
+              cursor: pointer;
+            }
+          ` : ''}
         `}
       </style>
       
@@ -1048,11 +1101,11 @@ export default function App() {
             {/* Manual Mode Inputs */}
             {mode === 'MANUAL' ? (
               <>
-                {(activeCategory === 'COSTS' || activeCategory === 'SALES') ? (
+                {(activeCategory === 'COSTS' || activeCategory === 'SALES' || activeCategory === 'SUPPLIER' || activeCategory === 'BANK') ? (
                   <>
                      <div className="space-y-1">
                       <label className={`text-xs ${theme.textMuted}`}>
-                        {activeCategory === 'SALES' ? 'Customer Name' : 'Supplier Name'}
+                        {activeCategory === 'SALES' ? 'Customer Name' : (activeCategory === 'BANK' ? 'Bank Name' : 'Supplier Name')}
                       </label>
                       <input 
                         type="text" 
@@ -1061,6 +1114,32 @@ export default function App() {
                         className={`w-full ${theme.bgInput} ${theme.borderInput} border rounded-md p-2.5 text-sm ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
                       />
                     </div>
+
+                    {activeCategory === 'BANK' && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className={`text-xs ${theme.textMuted}`}>Account Name</label>
+                          <input 
+                            type="text" 
+                            value={manualData.bankAccountName || ''}
+                            onChange={(e) => setManualData({...manualData, bankAccountName: e.target.value})}
+                            className={`w-full ${theme.bgInput} ${theme.borderInput} border rounded-md p-2.5 text-sm ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
+                            placeholder="John Doe Trading"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className={`text-xs ${theme.textMuted}`}>Account Number</label>
+                          <input 
+                            type="text" 
+                            value={manualData.bankAccountNum || ''}
+                            onChange={(e) => setManualData({...manualData, bankAccountNum: e.target.value})}
+                            className={`w-full ${theme.bgInput} ${theme.borderInput} border rounded-md p-2.5 text-sm ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
+                            placeholder="12345678"
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <label className={`text-xs ${theme.textMuted}`}>Date</label>
@@ -1085,6 +1164,7 @@ export default function App() {
                         </div>
                       )}
 
+                      {activeCategory !== 'SUPPLIER' && activeCategory !== 'BANK' && (
                       <div className={`space-y-1 ${docType.includes('Invoice') ? 'col-span-2' : ''}`}>
                         <label className={`text-xs ${theme.textMuted}`}>Total ({REGIONS[region].currency})</label>
                         <input 
@@ -1094,7 +1174,9 @@ export default function App() {
                           className={`w-full ${theme.bgInput} ${theme.borderInput} border rounded-md p-2.5 text-sm ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
                         />
                       </div>
+                      )}
                     </div>
+                    {activeCategory !== 'SUPPLIER' && activeCategory !== 'BANK' && (
                     <div className="space-y-1">
                        <div className="flex justify-between items-center">
                          <label className={`text-xs ${theme.textMuted}`}>Tax ({REGIONS[region].taxLabel})</label>
@@ -1122,6 +1204,7 @@ export default function App() {
                           )}
                        </div>
                     </div>
+                    )}
                   </>
                 ) : (
                   <div className={`${theme.textMuted} text-sm italic p-4 border border-dashed ${theme.borderInput} rounded`}>
