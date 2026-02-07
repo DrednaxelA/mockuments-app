@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 /**
- * MOCKUMENTS v2.2 (Final)
+ * MOCKUMENTS v2.3 - WITH TEMPLATE SYSTEM
  */
 
 // --- Constants & Config ---
@@ -32,7 +32,7 @@ const REGIONS = {
 };
 
 const CATEGORIES = {
-  COSTS: { id: 'Costs', icon: ShoppingCart, types: ['Receipt', 'Invoice', 'Credit Note'] },
+  COSTS: { id: 'Costs', icon: ShoppingCart, types: ['Receipt', 'Invoice', 'Credit Note', 'ATM Withdrawal'] },
   SALES: { id: 'Sales', icon: FileText, types: ['Sales Invoice', 'Sales Receipt', 'Sales Credit Note'] },
   VAULT: { id: 'Vault', icon: Archive, types: ['Insurance Policy', 'Tax Filing', 'Tenancy Agreement'] },
   BANK: { id: 'Bank Statements', icon: Landmark, types: ['Bank Statement'] },
@@ -59,6 +59,90 @@ const DUMMY_DATA = {
 };
 
 const PAPER_NOISE = "data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.1'/%3E%3C/svg%3E";
+
+// --- Template System ---
+const TEMPLATES = {
+  RECEIPT: {
+    minimal: {
+      id: 'minimal',
+      name: 'Minimal',
+      aesthetic: 'Modern',
+      styles: {
+        containerFont: 'font-mono',
+        headerSize: 'text-xl',
+        headerWeight: 'font-bold',
+        headerCase: 'uppercase',
+        headerAlign: 'text-center',
+        addressSize: 'text-sm mt-1',
+        addressWeight: 'font-semibold',
+        addressColor: 'text-gray-700',
+        borderStyle: 'border-dashed',
+        borderWidth: 'border-b-2',
+        labelWeight: 'font-semibold',
+        lineSpacing: 'space-y-2',
+        totalSize: 'text-lg',
+        totalWeight: 'font-black',
+        padding: 'p-8'
+      }
+    },
+    thermal: {
+      id: 'thermal',
+      name: 'Thermal',
+      aesthetic: 'Retro',
+      styles: {
+        containerFont: 'font-mono',
+        headerSize: 'text-xs',
+        headerWeight: 'font-black',
+        headerCase: 'uppercase',
+        headerAlign: 'text-center',
+        addressSize: 'text-[9px] mt-0',
+        addressWeight: 'font-black',
+        addressColor: 'text-black',
+        borderStyle: 'border-dotted',
+        borderWidth: 'border-b',
+        labelWeight: 'font-black uppercase text-[10px]',
+        lineSpacing: 'space-y-0.5',
+        totalSize: 'text-sm',
+        totalWeight: 'font-black',
+        padding: 'p-4'
+      }
+    },
+    corporate: {
+      id: 'corporate',
+      name: 'Corporate',
+      aesthetic: 'Luxury',
+      styles: {
+        containerFont: 'font-sans',
+        headerSize: 'text-3xl',
+        headerWeight: 'font-semibold',
+        headerCase: '',
+        headerAlign: 'text-center',
+        addressSize: 'text-base mt-3',
+        addressWeight: 'font-normal',
+        addressColor: 'text-gray-500',
+        borderStyle: 'border-solid',
+        borderWidth: 'border-b-[3px]',
+        labelWeight: 'font-medium',
+        lineSpacing: 'space-y-4',
+        totalSize: 'text-2xl',
+        totalWeight: 'font-semibold',
+        padding: 'p-12'
+      }
+    }
+  },
+  INVOICE: {
+    minimal: { id: 'minimal', name: 'Minimal', aesthetic: 'Modern', styles: {} }
+  },
+  VAULT: {
+    minimal: { id: 'minimal', name: 'Minimal', aesthetic: 'Formal', styles: {} }
+  },
+  BANK: {
+    minimal: { id: 'minimal', name: 'Minimal', aesthetic: 'Standard', styles: {} }
+  },
+  STATEMENT: {
+    minimal: { id: 'minimal', name: 'Minimal', aesthetic: 'Professional', styles: {} }
+  }
+};
 
 // --- Utilities ---
 
@@ -101,7 +185,23 @@ export default function App() {
   // Theme State
   const [isDarkMode, setIsDarkMode] = useState(true);
 
+  // Template State
+  const [selectedTemplate, setSelectedTemplate] = useState('minimal');
+
+  // Template State - tracks which template is selected for each doc type
+  const [selectedTemplates, setSelectedTemplates] = useState({
+    RECEIPT: 'minimal',
+    INVOICE: 'minimal',
+    VAULT: 'minimal',
+    BANK: 'minimal',
+    STATEMENT: 'minimal'
+  });
+
+  // Preview transition state
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
   const [includeSupportDocs, setIncludeSupportDocs] = useState(false); 
+  const [includePO, setIncludePO] = useState(false); // NEW: Track if user wants PO number 
   
   const [manualData, setManualData] = useState({
     supplier: "Joe's Coffee",
@@ -110,10 +210,14 @@ export default function App() {
     total: "120.00",
     tax: "24.00",
     autoCalcTax: true,
+    poNumber: "",
+    bankAccountName: "John Doe Trading",
+    bankAccountNum: "12345678"
   });
 
   const [stableRandomSupplier, setStableRandomSupplier] = useState("");
   const previewRef = useRef(null);
+  const captureRef = useRef(null); // Hidden element for PDF capture
 
   const [previewData, setPreviewData] = useState({
     type: 'RECEIPT', 
@@ -126,7 +230,34 @@ export default function App() {
     meta: {},
   });
 
-  // --- Theme Configuration ---
+  const [captureData, setCaptureData] = useState(null); // Data for hidden capture element
+
+  // Get current document type for templates
+  const getCurrentDocType = () => {
+    if (activeCategory === 'BANK') return 'BANK';
+    if (activeCategory === 'SUPPLIER') return 'STATEMENT';
+    if (activeCategory === 'VAULT') return 'VAULT';
+    if (docType.includes('Invoice') || docType.includes('Credit Note')) return 'INVOICE';
+    return 'RECEIPT';
+  };
+
+  const currentDocType = getCurrentDocType();
+  const availableTemplates = Object.values(TEMPLATES[currentDocType] || {});
+  const currentTemplate = TEMPLATES[currentDocType]?.[selectedTemplates[currentDocType]] || availableTemplates[0];
+
+  // Function to change template with smooth transition
+  const changeTemplate = (templateId) => {
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setSelectedTemplates(prev => ({
+        ...prev,
+        [currentDocType]: templateId
+      }));
+      setTimeout(() => setIsTransitioning(false), 300);
+    }, 300);
+  };
+
+  // Theme Configuration
   const theme = isDarkMode ? {
     bgApp: 'bg-[#121212]',
     bgSidebar: 'bg-[#121212]',
@@ -222,9 +353,86 @@ export default function App() {
 
   useEffect(() => {
     if (!isGenerating) {
+      // Only regenerate preview when mode/category/docType changes, not on every manual field change
       regeneratePreview();
     }
-  }, [region, docType, mode, activeCategory, manualData]);
+  }, [region, docType, mode, activeCategory, selectedTemplates]);
+
+  // NEW: Update preview directly when manual data changes (don't regenerate everything)
+  useEffect(() => {
+    if (mode === 'MANUAL' && !isGenerating && previewData.supplier) {
+      // Handle supplier/customer differently for Sales vs Costs
+      let supplier, customerName;
+      
+      if (activeCategory === 'SALES') {
+        // Sales: manualData.supplier goes to customerName (Bill To), supplier stays as company name
+        customerName = manualData.supplier?.trim() || 'Acme Corp';
+        supplier = stableRandomSupplier || previewData.supplier; // Keep existing supplier
+      } else if (activeCategory === 'BANK') {
+        supplier = manualData.supplier?.trim() || 'Global Bank Inc.';
+        customerName = 'Generic Corp Ltd.';
+      } else {
+        // Costs/Supplier: manualData.supplier goes to supplier (vendor)
+        supplier = manualData.supplier?.trim() || "Joe's Coffee";
+        customerName = 'Generic Corp Ltd.';
+      }
+      
+      const total = manualData.total || '120.00';
+      
+      // Calculate tax based on actual total (including default)
+      let tax;
+      if (manualData.autoCalcTax) {
+        const rate = REGIONS[region].taxRate;
+        const totalVal = parseFloat(total);
+        tax = (totalVal - (totalVal / (1 + rate))).toFixed(2);
+        
+        // Update the tax field if it's different from calculated value
+        if (manualData.tax !== tax) {
+          setManualData(prev => ({ ...prev, tax: tax }));
+        }
+      } else {
+        tax = manualData.tax || '20.00';
+      }
+      
+      // Only update lines for receipts/invoices, not for bank/supplier statements
+      const shouldUpdateLines = activeCategory !== 'BANK' && activeCategory !== 'SUPPLIER';
+      
+      setPreviewData(prev => ({
+        ...prev,
+        supplier: supplier,
+        date: new Date(manualData.date),
+        total: total,
+        tax: tax,
+        lines: shouldUpdateLines ? [
+          { desc: "General Goods", qty: 1, amount: (parseFloat(total) * 0.7).toFixed(2) },
+          { desc: "Service Fee", qty: 1, amount: (parseFloat(total) * 0.3).toFixed(2) }
+        ] : prev.lines,
+        meta: {
+          ...prev.meta,
+          customerName: customerName,
+          dueDate: manualData.dueDate ? new Date(manualData.dueDate) : prev.meta?.dueDate,
+          poNumber: includePO 
+            ? (manualData.poNumber || `PO-${Math.floor(Math.random() * 100000)}`)
+            : null,
+          accountName: manualData.bankAccountName || 'John Doe Trading',
+          accountNum: manualData.bankAccountNum || '12345678'
+        }
+      }));
+    }
+  }, [manualData, mode, includePO, activeCategory, stableRandomSupplier, region]);
+
+  // NEW: Handle PO checkbox changes in AUTO mode
+  useEffect(() => {
+    if (mode === 'AUTO' && !isGenerating && previewData.meta) {
+      setPreviewData(prev => ({
+        ...prev,
+        meta: {
+          ...prev.meta,
+          poNumber: includePO ? `PO-${Math.floor(Math.random() * 100000)}` : null
+        }
+      }));
+    }
+  }, [includePO, mode]);
 
   useEffect(() => {
     const iconColor = isDarkMode ? '#121212' : '#ffffff';
@@ -250,6 +458,9 @@ export default function App() {
       document.head.appendChild(link);
     }
   }, [isDarkMode]);
+
+  // [Keep all your existing data generation functions - generateBankData, generateSupplierStatementData, etc.]
+  // I'm going to keep them the same, just adding the template-aware renderReceipt
 
   const generateBankData = () => {
     const rData = DUMMY_DATA[region];
@@ -402,11 +613,40 @@ export default function App() {
       tax,
       lines,
       meta: {
-        poNumber: `PO-${Math.floor(Math.random() * 100000)}`,
+        poNumber: includePO 
+          ? (mode === 'MANUAL' && manualData.poNumber ? manualData.poNumber : `PO-${Math.floor(Math.random() * 100000)}`)
+          : null,
         authCode: Math.random().toString(36).substring(7).toUpperCase(),
         dueDate: dueDate,
         originalInvoiceRef: isCredit ? `REF-${Math.floor(Math.random() * 99999)}` : null,
         customerName: customerName
+      }
+    };
+  };
+
+  const generateATMData = () => {
+    const rData = DUMMY_DATA[region];
+    const bankName = mode === 'MANUAL' ? (manualData.supplier || 'Global Bank Inc.') : getRandomElement(rData.suppliers.filter(s => s.includes('Bank')));
+    const withdrawalAmount = mode === 'MANUAL' ? manualData.total : (Math.random() * 400 + 20).toFixed(2);
+    const surcharge = (Math.random() * 3 + 1).toFixed(2);
+    const accountBalance = (Math.random() * 5000 + 500).toFixed(2);
+    const date = mode === 'MANUAL' ? new Date(manualData.date) : new Date();
+    
+    return {
+      type: 'ATM',
+      supplier: bankName,
+      date: date,
+      total: withdrawalAmount,
+      meta: {
+        atmLocation: mode === 'MANUAL' ? rData.addresses[0] : getRandomElement(rData.addresses),
+        atmID: `ATM-${Math.floor(Math.random() * 99999)}`,
+        accountNumber: `****${Math.floor(Math.random() * 9000 + 1000)}`, // Last 4 digits only
+        transactionType: 'Cash Withdrawal',
+        surcharge: surcharge,
+        accountBalance: accountBalance,
+        availableBalance: (parseFloat(accountBalance) - 100).toFixed(2),
+        authCode: Math.random().toString(36).substring(2, 10).toUpperCase(),
+        cardType: getRandomElement(['Debit', 'Credit', 'ATM Card'])
       }
     };
   };
@@ -464,6 +704,7 @@ export default function App() {
     let data;
     if (activeCategory === 'BANK') data = generateBankData();
     else if (activeCategory === 'SUPPLIER') data = generateSupplierStatementData();
+    else if (docType === 'ATM Withdrawal') data = generateATMData();
     else if (docType.includes('Invoice') || docType.includes('Credit Note')) data = generateReceiptData(true);
     else if (docType.includes('Vault') || activeCategory === 'VAULT') data = generateVaultData();
     else data = generateReceiptData(false);
@@ -471,64 +712,83 @@ export default function App() {
     setPreviewData(data);
   };
 
-  const captureCanvas = async (fileName, zip, rotation = true) => {
-    const captureEl = previewRef.current;
+  const captureCanvas = async (fileName, zip, tempData = null) => {
+    // In MANUAL mode or when capturing the current preview, use visible element
+    // In AUTO mode with temp data, use hidden element
+    const useHiddenCapture = tempData && mode === 'AUTO';
     
-    // Save original state
-    const originalTransform = captureEl.style.transform;
-    const originalOrigin = captureEl.style.transformOrigin;
-    const originalTransition = captureEl.style.transition;
-
-    // 1. DISABLE TRANSITIONS
-    captureEl.style.transition = 'none';
-
-    // 2. SETUP CAPTURE STATE
-    captureEl.style.transformOrigin = 'center';
-
-    if (rotation) {
-       const randomRot = (Math.random() - 0.5) * 1.5; 
-       captureEl.style.transform = `rotate(${randomRot}deg) scale(0.98)`;
+    if (useHiddenCapture) {
+      // Render to hidden element
+      setCaptureData(tempData);
+      await new Promise(resolve => setTimeout(resolve, 150));
+      
+      const captureEl = captureRef.current;
+      const originalTransition = captureEl.style.transition;
+      captureEl.style.transition = 'none';
+      void captureEl.offsetHeight;
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      const canvas = await window.html2canvas(captureEl, {
+        scale: 2, 
+        logging: false, 
+        useCORS: true, 
+        backgroundColor: '#ffffff'
+      });
+      
+      captureEl.style.transition = originalTransition;
+      setCaptureData(null);
+      
+      const imgData = canvas.toDataURL('image/jpeg', 0.8);
+      const isLandscape = canvas.width > canvas.height;
+      const pdf = new window.jspdf.jsPDF({
+         orientation: isLandscape ? 'l' : 'p',
+         unit: 'mm',
+         format: 'a4'
+      });
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      
+      if (zip) zip.file(fileName, pdf.output('blob'));
+      else pdf.save(fileName);
+      
     } else {
-       captureEl.style.transform = 'scale(1)'; 
+      // Capture visible preview (Manual mode or first PDF in Auto)
+      const captureEl = previewRef.current;
+      const originalTransition = captureEl.style.transition;
+      captureEl.style.transition = 'none';
+      void captureEl.offsetHeight;
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      const canvas = await window.html2canvas(captureEl, {
+        scale: 2, 
+        logging: false, 
+        useCORS: true, 
+        backgroundColor: '#ffffff'
+      });
+      
+      requestAnimationFrame(() => {
+          captureEl.style.transition = originalTransition;
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.8);
+      const isLandscape = canvas.width > canvas.height;
+      const pdf = new window.jspdf.jsPDF({
+         orientation: isLandscape ? 'l' : 'p',
+         unit: 'mm',
+         format: 'a4'
+      });
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      
+      if (zip) zip.file(fileName, pdf.output('blob'));
+      else pdf.save(fileName);
     }
-
-    // 3. FORCE REFLOW
-    void captureEl.offsetHeight;
-
-    // 4. WAIT FOR PAINT
-    await new Promise(resolve => setTimeout(resolve, 50));
-
-    const canvas = await window.html2canvas(captureEl, {
-      scale: 2, 
-      logging: false, 
-      useCORS: true, 
-      backgroundColor: '#ffffff'
-    });
-    
-    // 5. RESTORE STATE
-    captureEl.style.transformOrigin = originalOrigin;
-    captureEl.style.transform = originalTransform;
-    
-    // 6. RESTORE TRANSITIONS ASYNC
-    requestAnimationFrame(() => {
-        captureEl.style.transition = originalTransition;
-    });
-
-    const imgData = canvas.toDataURL('image/jpeg', 0.8);
-    const isLandscape = canvas.width > canvas.height;
-    const pdf = new window.jspdf.jsPDF({
-       orientation: isLandscape ? 'l' : 'p',
-       unit: 'mm',
-       format: 'a4'
-    });
-    
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-    
-    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-    
-    if (zip) zip.file(fileName, pdf.output('blob'));
-    else pdf.save(fileName);
   };
 
   const generatePDFs = async () => {
@@ -536,7 +796,6 @@ export default function App() {
     setIsGenerating(true);
     setProgress(0);
     
-    // Wait for UI to stabilize
     await new Promise(r => setTimeout(r, 100));
     
     const JSZip = window.JSZip;
@@ -557,11 +816,11 @@ export default function App() {
         else if (activeCategory === 'VAULT') data = generateVaultData();
         else data = generateReceiptData(false);
 
-        setPreviewData(data);
-        await new Promise(r => setTimeout(r, 150)); 
+        // Don't update preview - just wait for DOM to be ready
+        await new Promise(r => setTimeout(r, 50)); 
         const mainFileName = `${activeCategory}_${docType.replace(/\s/g,'')}_${i+1}_${dateStr}.pdf`;
         
-        await captureCanvas(mainFileName, isZipMode ? zip : null);
+        await captureCanvas(mainFileName, isZipMode ? zip : null, data);
 
         if (activeCategory === 'SUPPLIER' && includeSupportDocs) {
           const stmtSupplier = data.supplier;
@@ -577,11 +836,9 @@ export default function App() {
               lines: [{ desc: line.desc, qty: 1, amount: line.amount }],
               meta: { poNumber: line.ref, authCode: 'LINKED' }
             };
-            setPreviewData(linkedInvData);
-            await new Promise(r => setTimeout(r, 150));
-            await captureCanvas(`${stmtSupplier}_Invoice_${line.ref}.pdf`, zip);
+            await new Promise(r => setTimeout(r, 50));
+            await captureCanvas(`${stmtSupplier}_Invoice_${line.ref}.pdf`, zip, linkedInvData);
           }
-          setPreviewData(data); 
           await new Promise(r => setTimeout(r, 50));
         }
         setProgress(Math.round(((i + 1) / count) * 100));
@@ -614,53 +871,171 @@ export default function App() {
     }
   };
 
-  const renderReceipt = () => (
-    <div className="w-[380px] min-h-[600px] bg-white p-8 font-mono text-xs relative shadow-xl mx-auto text-black">
-       <div className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-20" style={{backgroundImage: `url("${PAPER_NOISE}")`}}></div>
-       
-       <div className="text-center mb-6 z-10 relative">
-          <h2 className="text-xl font-bold uppercase tracking-tight">{previewData.supplier}</h2>
-          <p className="mt-1 font-semibold text-gray-700">{previewData.address}</p>
-          <p className="mt-2 text-[10px] font-bold text-gray-600">{previewData.meta.authCode}</p>
-       </div>
-       
-       <div className="border-b-2 border-dashed border-gray-800 mb-4"></div>
-       
-       <div className="flex justify-between mb-2 font-semibold">
-         <span>Date:</span>
-         <span>{formatDate(previewData.date, REGIONS[region].locale)}</span>
-       </div>
+  // UPDATED: Template-aware receipt renderer
+  const renderReceipt = (data = previewData) => {
+    const t = currentTemplate?.styles || {};
+    
+    return (
+      <div className={`w-[380px] min-h-[600px] bg-white ${t.padding || 'p-8'} ${t.containerFont || 'font-mono'} text-xs relative shadow-xl mx-auto text-black`}>
+         <div className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-20" style={{backgroundImage: `url("${PAPER_NOISE}")`}}></div>
+         
+         <div className={`${t.headerAlign} mb-6 z-10 relative`}>
+            <h2 className={`${t.headerSize} ${t.headerWeight} ${t.headerCase} tracking-tight`}>
+              {data.supplier}
+            </h2>
+            <p className={`${t.addressSize} ${t.addressWeight} ${t.addressColor}`}>
+              {data.address}
+            </p>
+            <p className="mt-2 text-[10px] font-bold text-gray-600">{data.meta.authCode}</p>
+         </div>
+         
+         <div className={`${t.borderStyle} ${t.borderWidth} border-gray-800 mb-4`}></div>
+         
+         <div className={`flex justify-between mb-2 ${t.labelWeight}`}>
+           <span>Date:</span>
+           <span>{formatDate(previewData.date, REGIONS[region].locale)}</span>
+         </div>
 
-       <div className="space-y-2 mt-4 mb-6 font-medium">
-         {previewData.lines.map((l, i) => (
-           <div key={i} className="flex justify-between">
-             <span>{l.desc}</span>
-             <span>{formatCurrency(l.amount, REGIONS[region].currency)}</span>
+         <div className={`${t.lineSpacing} mt-4 mb-6 font-medium`}>
+           {previewData.lines.map((l, i) => (
+             <div key={i} className="flex justify-between">
+               <span>{l.desc}</span>
+               <span>{formatCurrency(l.amount, REGIONS[region].currency)}</span>
+             </div>
+           ))}
+         </div>
+
+         <div className={`${t.borderStyle} border-t-2 border-gray-800 pt-2 space-y-1 ${t.totalWeight}`}>
+           <div className="flex justify-between">
+             <span>Subtotal</span>
+             <span>{formatCurrency(parseFloat(previewData.total) - parseFloat(previewData.tax), REGIONS[region].currency)}</span>
            </div>
-         ))}
-       </div>
-
-       <div className="border-t-2 border-dashed border-gray-800 pt-2 space-y-1 font-bold">
-         <div className="flex justify-between">
-           <span>Subtotal</span>
-           <span>{formatCurrency(parseFloat(previewData.total) - parseFloat(previewData.tax), REGIONS[region].currency)}</span>
+           <div className="flex justify-between">
+             <span>{REGIONS[region].taxLabel}</span>
+             <span>{formatCurrency(previewData.tax, REGIONS[region].currency)}</span>
+           </div>
+           <div className={`flex justify-between ${t.totalSize} ${t.totalWeight} mt-2`}>
+             <span>TOTAL</span>
+             <span>{formatCurrency(previewData.total, REGIONS[region].currency)}</span>
+           </div>
          </div>
-         <div className="flex justify-between">
-           <span>{REGIONS[region].taxLabel}</span>
-           <span>{formatCurrency(previewData.tax, REGIONS[region].currency)}</span>
-         </div>
-         <div className="flex justify-between text-lg font-black mt-2">
-           <span>TOTAL</span>
-           <span>{formatCurrency(previewData.total, REGIONS[region].currency)}</span>
-         </div>
-       </div>
 
-       <div className="mt-8 text-center font-bold text-gray-500">
-         <div className="text-[10px]"> थैंक यू • MERCI • GRAZIE • THANKS </div>
-       </div>
-    </div>
-  );
+         <div className="mt-8 text-center font-bold text-gray-500">
+           <div className="text-[10px]"> थैंक यू • MERCI • GRAZIE • THANKS </div>
+         </div>
+      </div>
+    );
+  };
 
+  const renderATM = (data = previewData) => {
+    const t = currentTemplate?.styles || {};
+    
+    return (
+      <div className={`w-[300px] min-h-[500px] bg-white p-4 font-mono text-[9px] relative shadow-xl mx-auto text-black leading-tight`}>
+         <div className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-30" style={{backgroundImage: `url("${PAPER_NOISE}")`}}></div>
+         
+         {/* Bank Name/Logo Header */}
+         <div className="text-center mb-3 z-10 relative">
+            <h2 className="text-sm font-bold tracking-wider uppercase border-b-2 border-dashed border-gray-400 pb-2">
+              {data.supplier}
+            </h2>
+            <p className="text-[8px] mt-1 text-gray-600">Automated Teller Machine</p>
+         </div>
+         
+         {/* ATM Location & ID */}
+         <div className="mb-3 z-10 relative">
+            <div className="flex justify-between text-[8px]">
+              <span className="text-gray-600">Location:</span>
+              <span className="text-right max-w-[180px]">{data.meta.atmLocation}</span>
+            </div>
+            <div className="flex justify-between text-[8px]">
+              <span className="text-gray-600">ATM ID:</span>
+              <span>{data.meta.atmID}</span>
+            </div>
+         </div>
+         
+         {/* Date & Time */}
+         <div className="border-t border-b border-dashed border-gray-400 py-2 mb-3 z-10 relative">
+            <div className="flex justify-between">
+              <span className="font-bold">Date:</span>
+              <span>{formatDate(data.date, REGIONS[region].locale)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-bold">Time:</span>
+              <span>{data.date.toLocaleTimeString(REGIONS[region].locale, {hour: '2-digit', minute: '2-digit', second: '2-digit'})}</span>
+            </div>
+         </div>
+         
+         {/* Transaction Details */}
+         <div className="mb-3 z-10 relative">
+            <div className="flex justify-between mb-1">
+              <span className="text-gray-600">Card Type:</span>
+              <span>{data.meta.cardType}</span>
+            </div>
+            <div className="flex justify-between mb-1">
+              <span className="text-gray-600">Account:</span>
+              <span>{data.meta.accountNumber}</span>
+            </div>
+            <div className="flex justify-between font-bold text-[10px] mt-2">
+              <span>Transaction:</span>
+              <span>{data.meta.transactionType}</span>
+            </div>
+         </div>
+         
+         {/* Amount Section */}
+         <div className="border-t-2 border-b-2 border-gray-800 py-3 mb-3 z-10 relative">
+            <div className="flex justify-between text-sm font-bold mb-1">
+              <span>Amount:</span>
+              <span>{formatCurrency(data.total, REGIONS[region].currency)}</span>
+            </div>
+            {parseFloat(data.meta.surcharge) > 0 && (
+              <div className="flex justify-between text-[8px] text-gray-600">
+                <span>Surcharge:</span>
+                <span>{formatCurrency(data.meta.surcharge, REGIONS[region].currency)}</span>
+              </div>
+            )}
+         </div>
+         
+         {/* Balance Information */}
+         <div className="mb-3 z-10 relative">
+            <div className="flex justify-between mb-1">
+              <span className="text-gray-600">Account Balance:</span>
+              <span className="font-bold">{formatCurrency(data.meta.accountBalance, REGIONS[region].currency)}</span>
+            </div>
+            <div className="flex justify-between text-[8px]">
+              <span className="text-gray-600">Available:</span>
+              <span>{formatCurrency(data.meta.availableBalance, REGIONS[region].currency)}</span>
+            </div>
+         </div>
+         
+         {/* Authorization Code */}
+         <div className="border-t border-dashed border-gray-400 pt-2 mb-3 z-10 relative">
+            <div className="text-center text-[8px]">
+              <span className="text-gray-600">Authorization: </span>
+              <span className="font-bold">{data.meta.authCode}</span>
+            </div>
+         </div>
+         
+         {/* Footer Warning */}
+         <div className="text-center text-[7px] text-gray-500 mt-4 z-10 relative">
+            <p className="mb-1">PLEASE RETAIN FOR YOUR RECORDS</p>
+            <p>Dispose of this receipt thoughtfully</p>
+            <p className="mt-2">Thank you for banking with us</p>
+         </div>
+         
+         {/* Barcode simulation */}
+         <div className="mt-3 flex justify-center z-10 relative">
+            <div className="flex gap-[1px]">
+              {Array.from({length: 30}, (_, i) => (
+                <div key={i} className="w-[2px] bg-black" style={{height: `${Math.random() * 20 + 15}px`}}></div>
+              ))}
+            </div>
+         </div>
+      </div>
+    );
+  };
+
+  // [Keep all other render functions the same for now]
   const renderInvoice = () => (
     <div className="w-[595px] h-[842px] bg-white p-12 font-sans relative shadow-xl mx-auto text-gray-800">
       <div className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-20" style={{backgroundImage: `url("${PAPER_NOISE}")`}}></div>
@@ -670,7 +1045,9 @@ export default function App() {
           <h1 className="text-4xl font-bold text-gray-900 tracking-tight">
             {previewData.type === 'CREDIT_NOTE' ? 'CREDIT NOTE' : 'INVOICE'}
           </h1>
-          <p className="text-sm mt-2 font-medium">#{previewData.meta.poNumber}</p>
+          {previewData.meta.poNumber && (
+            <p className="text-sm mt-2 font-medium">#{previewData.meta.poNumber}</p>
+          )}
           {previewData.meta.originalInvoiceRef && (
             <p className="text-xs text-gray-500 mt-1">Ref Invoice: #{previewData.meta.originalInvoiceRef}</p>
           )}
@@ -899,7 +1276,6 @@ export default function App() {
           .animate-spin-slow { animation: spin-slow 3s linear infinite; }
           @keyframes fade-in-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
           .animate-fade-in-up { animation: fade-in-up 0.5s ease-out forwards; }
-          /* Updated Scrollbar Styling for Smoother Look */
           ::-webkit-scrollbar { width: 6px; }
           ::-webkit-scrollbar-track { background: transparent; }
           ::-webkit-scrollbar-thumb { background: #55555540; border-radius: 3px; }
@@ -911,16 +1287,22 @@ export default function App() {
               cursor: pointer;
             }
           ` : ''}
+
+          /* Smooth transition for template switching only */
+          .preview-transition {
+            transition: opacity 300ms ease-in-out;
+          }
+          .preview-transition.transitioning {
+            opacity: 0;
+          }
         `}
       </style>
       
-      {/* SIDEBAR */}
+      {/* SIDEBAR - Keep same */}
       <div className={`w-20 h-full flex-shrink-0 ${theme.bgSidebar} ${theme.border} border-r z-50 relative transition-colors duration-500`}>
         
-        {/* Floating Sidebar Container */}
         <div className={`absolute top-0 left-0 h-full w-20 hover:w-56 ${theme.bgSidebar} ${theme.bgSidebarHover} backdrop-blur-xl ${theme.border} border-r transition-all duration-500 ease-in-out flex flex-col overflow-hidden group shadow-2xl z-50`}>
           
-          {/* Logo Area */}
           <div className="h-20 flex items-center px-6 gap-4 flex-shrink-0">
             <div className={`w-8 h-8 ${theme.logoBg} rounded-md flex items-center justify-center flex-shrink-0`}>
               <ScanLine className={`${theme.logoIcon} w-5 h-5`} />
@@ -930,7 +1312,6 @@ export default function App() {
             </span>
           </div>
 
-          {/* Navigation Items */}
           <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto overflow-x-hidden">
             {Object.values(CATEGORIES).map((cat) => {
               const isActive = activeCategory === (cat.id === 'Bank Statements' ? 'BANK' : cat.id === 'Supplier Statements' ? 'SUPPLIER' : cat.id.toUpperCase());
@@ -954,7 +1335,6 @@ export default function App() {
             })}
           </nav>
           
-          {/* Theme Switcher */}
           <div className="px-3 pb-2 pt-2">
             <button 
               onClick={() => setIsDarkMode(!isDarkMode)}
@@ -969,10 +1349,9 @@ export default function App() {
             </button>
           </div>
 
-          {/* Footer Info */}
           <div className={`p-4 ${theme.border} border-t text-xs ${theme.textMuted} opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100 whitespace-nowrap overflow-hidden`}>
             <p>Dext OCR Testing Tool</p>
-            <p>v2.2 • React</p>
+            <p>v2.3 • React</p>
           </div>
         </div>
       </div>
@@ -980,7 +1359,7 @@ export default function App() {
       {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col md:flex-row h-full relative z-10 transition-colors duration-500">
         
-        {/* CONFIG PANEL */}
+        {/* CONFIG PANEL - Keep mostly same, will add template dropdown later */}
         <div 
           className={`w-full md:w-96 ${theme.bgPanel} ${theme.border} border-r p-6 flex flex-col gap-6 overflow-y-scroll transition-colors duration-500`}
         >
@@ -1050,7 +1429,9 @@ export default function App() {
             </div>
           </div>
 
-          {/* Dynamic Inputs */}
+          {/* [Rest of config panel stays the same - all your existing inputs] */}
+          {/* I'm keeping this section identical to save space */}
+          
           <div className="flex-1 space-y-4">
             <div className="space-y-1">
               <label className={`text-xs ${theme.textMuted}`}>Document Type</label>
@@ -1081,7 +1462,7 @@ export default function App() {
               )}
             </div>
 
-            {/* Special Configs for Supplier */}
+            {/* [All your existing manual/auto inputs - keeping them exactly as they are] */}
             {activeCategory === 'SUPPLIER' && (
                <div className={`p-3 ${theme.bgCard} rounded border ${theme.borderInput} flex items-start gap-3`}>
                   <input 
@@ -1098,22 +1479,60 @@ export default function App() {
                </div>
             )}
 
-            {/* Manual Mode Inputs */}
+            {/* NEW: PO Number toggle for Invoices */}
+            {activeCategory === 'COSTS' && docType.includes('Invoice') && !docType.includes('Credit') && (
+               <div className={`p-3 ${theme.bgCard} rounded border ${theme.borderInput} flex items-start gap-3 animate-fade-in-up`}>
+                  <input 
+                    type="checkbox" 
+                    id="includePO"
+                    checked={includePO}
+                    onChange={(e) => setIncludePO(e.target.checked)}
+                    className="mt-1 accent-[#FF5A02]" 
+                  />
+                  <div>
+                    <label htmlFor="includePO" className={`text-sm font-bold ${theme.textMain} block`}>Include Purchase Order Number</label>
+                    <p className={`text-[10px] ${theme.textMuted} mt-1`}>
+                      {mode === 'MANUAL' ? 'Enter a custom PO number below.' : 'Automatically generates a PO number for each invoice.'}
+                    </p>
+                  </div>
+               </div>
+            )}
+
             {mode === 'MANUAL' ? (
               <>
                 {(activeCategory === 'COSTS' || activeCategory === 'SALES' || activeCategory === 'SUPPLIER' || activeCategory === 'BANK') ? (
                   <>
-                     <div className="space-y-1">
-                      <label className={`text-xs ${theme.textMuted}`}>
-                        {activeCategory === 'SALES' ? 'Customer Name' : (activeCategory === 'BANK' ? 'Bank Name' : 'Supplier Name')}
-                      </label>
-                      <input 
-                        type="text" 
-                        value={manualData.supplier}
-                        onChange={(e) => setManualData({...manualData, supplier: e.target.value})}
-                        className={`w-full ${theme.bgInput} ${theme.borderInput} border rounded-md p-2.5 text-sm ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
-                      />
-                    </div>
+                     {/* Only show supplier/bank name for non-ATM documents */}
+                     {docType !== 'ATM Withdrawal' && (
+                       <div className="space-y-1">
+                        <label className={`text-xs ${theme.textMuted}`}>
+                          {activeCategory === 'SALES' ? 'Customer Name' : (activeCategory === 'BANK' ? 'Bank Name' : 'Supplier Name')}
+                        </label>
+                        <input 
+                          type="text" 
+                          value={manualData.supplier}
+                          onChange={(e) => setManualData({...manualData, supplier: e.target.value})}
+                          maxLength={100}
+                          placeholder={activeCategory === 'SALES' ? 'Acme Corp' : (activeCategory === 'BANK' ? 'Global Bank Inc.' : "Joe's Coffee")}
+                          className={`w-full ${theme.bgInput} ${theme.borderInput} border rounded-md p-2.5 text-sm ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
+                        />
+                      </div>
+                     )}
+
+                     {/* For ATM, show Bank Name field */}
+                     {docType === 'ATM Withdrawal' && (
+                       <div className="space-y-1">
+                        <label className={`text-xs ${theme.textMuted}`}>Bank Name</label>
+                        <input 
+                          type="text" 
+                          value={manualData.supplier}
+                          onChange={(e) => setManualData({...manualData, supplier: e.target.value})}
+                          maxLength={100}
+                          placeholder="Global Bank Inc."
+                          className={`w-full ${theme.bgInput} ${theme.borderInput} border rounded-md p-2.5 text-sm ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
+                        />
+                      </div>
+                     )}
 
                     {activeCategory === 'BANK' && (
                       <div className="grid grid-cols-2 gap-4">
@@ -1123,6 +1542,7 @@ export default function App() {
                             type="text" 
                             value={manualData.bankAccountName || ''}
                             onChange={(e) => setManualData({...manualData, bankAccountName: e.target.value})}
+                            maxLength={100}
                             className={`w-full ${theme.bgInput} ${theme.borderInput} border rounded-md p-2.5 text-sm ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
                             placeholder="John Doe Trading"
                           />
@@ -1133,6 +1553,7 @@ export default function App() {
                             type="text" 
                             value={manualData.bankAccountNum || ''}
                             onChange={(e) => setManualData({...manualData, bankAccountNum: e.target.value})}
+                            maxLength={20}
                             className={`w-full ${theme.bgInput} ${theme.borderInput} border rounded-md p-2.5 text-sm ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
                             placeholder="12345678"
                           />
@@ -1151,7 +1572,6 @@ export default function App() {
                         />
                       </div>
                       
-                      {/* Conditional Due Date Input for Invoices */}
                       {docType.includes('Invoice') && (
                         <div className="space-y-1 animate-fade-in-up">
                           <label className={`text-xs ${theme.textMuted}`}>Due Date</label>
@@ -1164,19 +1584,57 @@ export default function App() {
                         </div>
                       )}
 
-                      {activeCategory !== 'SUPPLIER' && activeCategory !== 'BANK' && (
+                      {/* NEW: PO Number field - only for invoices when checkbox is checked */}
+                      {docType.includes('Invoice') && !docType.includes('Credit') && includePO && mode === 'MANUAL' && (
+                        <div className="space-y-1 animate-fade-in-up">
+                          <label className={`text-xs ${theme.textMuted}`}>Purchase Order Number</label>
+                          <input 
+                            type="text" 
+                            value={manualData.poNumber}
+                            onChange={(e) => setManualData({...manualData, poNumber: e.target.value})}
+                            maxLength={50}
+                            className={`w-full ${theme.bgInput} ${theme.borderInput} border rounded-md p-2.5 text-sm ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
+                            placeholder="PO-2024-001"
+                          />
+                        </div>
+                      )}
+
+                      {/* Total field - hide for ATM since withdrawal amount is more specific */}
+                      {activeCategory !== 'SUPPLIER' && activeCategory !== 'BANK' && docType !== 'ATM Withdrawal' && (
                       <div className={`space-y-1 ${docType.includes('Invoice') ? 'col-span-2' : ''}`}>
                         <label className={`text-xs ${theme.textMuted}`}>Total ({REGIONS[region].currency})</label>
                         <input 
                           type="number" 
                           value={manualData.total}
                           onChange={(e) => setManualData({...manualData, total: e.target.value})}
+                          min="0.01"
+                          max="999999.99"
+                          step="0.01"
+                          placeholder="120.00"
+                          className={`w-full ${theme.bgInput} ${theme.borderInput} border rounded-md p-2.5 text-sm ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
+                        />
+                      </div>
+                      )}
+
+                      {/* Withdrawal Amount for ATM */}
+                      {docType === 'ATM Withdrawal' && (
+                      <div className="space-y-1 col-span-2">
+                        <label className={`text-xs ${theme.textMuted}`}>Withdrawal Amount ({REGIONS[region].currency})</label>
+                        <input 
+                          type="number" 
+                          value={manualData.total}
+                          onChange={(e) => setManualData({...manualData, total: e.target.value})}
+                          min="0.01"
+                          max="999999.99"
+                          step="0.01"
+                          placeholder="100.00"
                           className={`w-full ${theme.bgInput} ${theme.borderInput} border rounded-md p-2.5 text-sm ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
                         />
                       </div>
                       )}
                     </div>
-                    {activeCategory !== 'SUPPLIER' && activeCategory !== 'BANK' && (
+                    {/* Tax field - hide for ATM withdrawals */}
+                    {activeCategory !== 'SUPPLIER' && activeCategory !== 'BANK' && docType !== 'ATM Withdrawal' && (
                     <div className="space-y-1">
                        <div className="flex justify-between items-center">
                          <label className={`text-xs ${theme.textMuted}`}>Tax ({REGIONS[region].taxLabel})</label>
@@ -1194,6 +1652,9 @@ export default function App() {
                             value={manualData.tax}
                             disabled={manualData.autoCalcTax}
                             onChange={(e) => setManualData({...manualData, tax: e.target.value, autoCalcTax: false})}
+                            min="0"
+                            max="999999.99"
+                            step="0.01"
                             className={`w-full ${theme.bgInput} ${theme.borderInput} border rounded-md p-2.5 text-sm ${theme.textInput} focus:outline-none focus:${theme.borderHighlight} ${manualData.autoCalcTax ? 'opacity-50 cursor-not-allowed' : ''}`}
                           />
                           {manualData.autoCalcTax && (
@@ -1259,8 +1720,8 @@ export default function App() {
           </div>
         </div>
 
-        {/* LIVE PREVIEW AREA */}
-        <div className={`flex-1 ${theme.bgPreview} p-8 flex items-center justify-center relative overflow-hidden transition-colors duration-500`}>
+        {/* LIVE PREVIEW AREA - NOW WITH CAROUSEL */}
+        <div className={`flex-1 ${theme.bgPreview} p-8 flex flex-col items-center justify-center relative overflow-hidden transition-colors duration-500`}>
            <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: `radial-gradient(${theme.gridColor} 1px, transparent 1px)`, backgroundSize: '20px 20px' }}></div>
            
            <div className="flex flex-col gap-4 items-center animate-fade-in-up w-full h-full overflow-y-auto overflow-x-hidden scrollbar-hide">
@@ -1268,33 +1729,28 @@ export default function App() {
                  <Settings size={12} /> Live Preview: {previewData.type}
               </div>
 
-              {/* FIX: Layout Wrapper Strategy (Reverted)
-                  1. Wrapper has the SCALED dimensions (e.g., 386px width) so flexbox centers it perfectly.
-                  2. Inner div (previewRef) has the ORIGINAL dimensions (595px) and scales down from top-left.
-              */}
+              {/* PREVIEW DOCUMENT */}
               <div className="flex-1 w-full flex justify-center min-h-0 my-4">
                   <div 
                       style={{ 
-                          // Reserve exactly the space needed for the visual result
-                          width: previewData.type === 'RECEIPT' ? 380 : 595 * 0.65,
-                          height: previewData.type === 'RECEIPT' ? 'auto' : 842 * 0.65,
+                          width: previewData.type === 'ATM' ? 300 : ((previewData.type === 'RECEIPT') ? 380 : 595 * 0.65),
+                          height: (previewData.type === 'RECEIPT' || previewData.type === 'ATM') ? 'auto' : 842 * 0.65,
                           overflow: 'visible' 
                       }}
                   >
                       <div 
                           ref={previewRef} 
                           id="doc-preview" 
-                          // FIX: Only apply transition when NOT generating to prevent bounce/blur in PDF
-                          className={`shadow-2xl overflow-hidden ${theme.bgApp} transition-all duration-500 origin-top-left`}
+                          className={`preview-transition ${isTransitioning ? 'transitioning' : ''} shadow-2xl overflow-hidden ${theme.bgApp} origin-top-left`}
                           style={{ 
-                              // Scale from top-left to fit into the wrapper
-                              transform: previewData.type === 'RECEIPT' ? 'scale(1)' : 'scale(0.65)',
-                              width: previewData.type === 'RECEIPT' ? '380px' : '595px',
-                              minHeight: previewData.type === 'RECEIPT' ? 'auto' : '842px',
+                              transform: (previewData.type === 'RECEIPT' || previewData.type === 'ATM') ? 'scale(1)' : 'scale(0.65)',
+                              width: previewData.type === 'ATM' ? '300px' : (previewData.type === 'RECEIPT' ? '380px' : '595px'),
+                              minHeight: (previewData.type === 'RECEIPT' || previewData.type === 'ATM') ? 'auto' : '842px',
                               backgroundColor: 'white', 
                           }}
                       >
                           {previewData.type === 'RECEIPT' && renderReceipt()}
+                          {previewData.type === 'ATM' && renderATM()}
                           {(previewData.type === 'INVOICE' || previewData.type === 'CREDIT_NOTE') && renderInvoice()}
                           {previewData.type === 'VAULT' && renderVault()}
                           {previewData.type === 'BANK' && renderBankStatement()}
@@ -1303,12 +1759,58 @@ export default function App() {
                   </div>
               </div>
 
+
+              {/* Template Selector - only show for receipts */}
+              {previewData.type === 'RECEIPT' && TEMPLATES.RECEIPT && (
+                <div className={`${theme.bgPanel} ${theme.border} border rounded-lg p-4 flex justify-center gap-3 sticky bottom-4 z-20 shadow-xl`}>
+                  {Object.values(TEMPLATES.RECEIPT).map((template) => {
+                    const isSelected = selectedTemplates[currentDocType] === template.id;
+                    return (
+                      <button
+                        key={template.id}
+                        onClick={() => changeTemplate(template.id)}
+                        className={`px-6 py-3 rounded-md transition-all duration-300 ${
+                          isSelected 
+                            ? `${theme.accentBg} ${theme.accentText} ${theme.borderHighlight} border-2 scale-105 shadow-lg` 
+                            : `${theme.bgCard} ${theme.textMuted} border-2 border-transparent hover:${theme.borderHighlight} hover:scale-105`
+                        }`}
+                      >
+                        <div className="text-sm font-semibold">{template.name}</div>
+                        <div className="text-[10px] opacity-70">{template.aesthetic}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
               <div className={`flex items-center gap-2 text-xs ${theme.textMuted} ${theme.bgPanel} px-3 py-1 rounded-full ${theme.border} border sticky bottom-4 z-20 mt-4`}>
                   <RefreshCw size={10} className="animate-spin-slow" />
                   Showing sample. Actual data generated on download.
               </div>
            </div>
         </div>
+
+        {/* HIDDEN CAPTURE ELEMENT - Used for PDF generation without affecting visible preview */}
+        {captureData && (
+          <div 
+            ref={captureRef}
+            style={{
+              position: 'absolute',
+              left: '-9999px',
+              top: 0,
+              width: captureData.type === 'ATM' ? '300px' : (captureData.type === 'RECEIPT' ? '380px' : '595px'),
+              minHeight: (captureData.type === 'RECEIPT' || captureData.type === 'ATM') ? 'auto' : '842px',
+              backgroundColor: 'white'
+            }}
+          >
+            {captureData.type === 'RECEIPT' && renderReceipt(captureData)}
+            {captureData.type === 'ATM' && renderATM(captureData)}
+            {(captureData.type === 'INVOICE' || captureData.type === 'CREDIT_NOTE') && renderInvoice(captureData)}
+            {captureData.type === 'VAULT' && renderVault(captureData)}
+            {captureData.type === 'BANK' && renderBankStatement(captureData)}
+            {captureData.type === 'STATEMENT' && renderSupplierStatement(captureData)}
+          </div>
+        )}
       </div>
     </div>
   );
