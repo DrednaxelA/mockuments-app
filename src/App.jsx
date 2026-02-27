@@ -202,6 +202,9 @@ export default function App() {
 
   const [includeSupportDocs, setIncludeSupportDocs] = useState(false); 
   const [includePO, setIncludePO] = useState(false); // NEW: Track if user wants PO number 
+  const [generatePO, setGeneratePO] = useState(false); // NEW: Generate matching PO document
+  const [previewMode, setPreviewMode] = useState('invoice'); // 'invoice' or 'po'
+  const [supplierStatementInvoiceCount, setSupplierStatementInvoiceCount] = useState(5); // NEW: Number of invoices in supplier statement
   
   const [manualData, setManualData] = useState({
     supplier: "Joe's Coffee",
@@ -397,6 +400,9 @@ export default function App() {
       // Only update lines for receipts/invoices, not for bank/supplier statements
       const shouldUpdateLines = activeCategory !== 'BANK' && activeCategory !== 'SUPPLIER';
       
+      // Calculate line items from subtotal (before tax), not total
+      const subtotal = parseFloat(total) - parseFloat(tax);
+      
       setPreviewData(prev => ({
         ...prev,
         supplier: supplier,
@@ -404,8 +410,8 @@ export default function App() {
         total: total,
         tax: tax,
         lines: shouldUpdateLines ? [
-          { desc: "General Goods", qty: 1, amount: (parseFloat(total) * 0.7).toFixed(2) },
-          { desc: "Service Fee", qty: 1, amount: (parseFloat(total) * 0.3).toFixed(2) }
+          { desc: "General Goods", qty: 1, amount: (subtotal * 0.7).toFixed(2) },
+          { desc: "Service Fee", qty: 1, amount: (subtotal * 0.3).toFixed(2) }
         ] : prev.lines,
         meta: {
           ...prev.meta,
@@ -517,7 +523,8 @@ export default function App() {
 
   const generateSupplierStatementData = () => {
     const rData = DUMMY_DATA[region];
-    const numInvoices = mode === 'AUTO' ? 5 : 3;
+    // Use configured invoice count
+    const numInvoices = supplierStatementInvoiceCount;
     let totalDue = 0;
     const invoices = [];
     
@@ -599,9 +606,11 @@ export default function App() {
         ? manualData.tax 
         : (total - (total / (1 + rate))).toFixed(2);
     
+    // Calculate line items from subtotal (before tax), not total
+    const subtotal = parseFloat(total) - parseFloat(tax);
     const lines = [
-        { desc: isCredit ? "Refund: General Goods" : "General Goods", qty: 1, amount: (total * 0.7).toFixed(2) },
-        { desc: isCredit ? "Refund: Service Fee" : "Service Fee", qty: 1, amount: (total * 0.3).toFixed(2) }
+        { desc: isCredit ? "Refund: General Goods" : "General Goods", qty: 1, amount: (subtotal * 0.7).toFixed(2) },
+        { desc: isCredit ? "Refund: Service Fee" : "Service Fee", qty: 1, amount: (subtotal * 0.3).toFixed(2) }
     ];
 
     return {
@@ -620,6 +629,45 @@ export default function App() {
         dueDate: dueDate,
         originalInvoiceRef: isCredit ? `REF-${Math.floor(Math.random() * 99999)}` : null,
         customerName: customerName
+      }
+    };
+  };
+
+  const generatePOData = () => {
+    // PO is from buyer's perspective - buyer issues PO to supplier
+    const rData = DUMMY_DATA[region];
+    const supplier = mode === 'MANUAL' ? manualData.supplier : getRandomElement(rData.suppliers);
+    const buyerName = "Generic Corp Ltd."; // The company issuing the PO
+    const address = mode === 'MANUAL' ? rData.addresses[0] : getRandomElement(rData.addresses);
+    const date = mode === 'MANUAL' ? new Date(manualData.date) : new Date();
+    const total = mode === 'MANUAL' ? manualData.total : (Math.random() * 200 + 10).toFixed(2);
+    
+    const rate = REGIONS[region].taxRate;
+    const tax = mode === 'MANUAL' 
+        ? manualData.tax 
+        : (total - (total / (1 + rate))).toFixed(2);
+    
+    // Calculate line items from subtotal (before tax), not total
+    const subtotal = parseFloat(total) - parseFloat(tax);
+    const lines = [
+        { desc: "General Goods", qty: 1, amount: (subtotal * 0.7).toFixed(2) },
+        { desc: "Service Fee", qty: 1, amount: (subtotal * 0.3).toFixed(2) }
+    ];
+
+    return {
+      type: 'PO',
+      supplier, // Vendor receiving the PO
+      buyer: buyerName, // Company issuing the PO
+      address,
+      date,
+      total,
+      tax,
+      lines,
+      meta: {
+        poNumber: mode === 'MANUAL' && manualData.poNumber ? manualData.poNumber : `PO-${Math.floor(Math.random() * 100000)}`,
+        authCode: Math.random().toString(36).substring(7).toUpperCase(),
+        deliveryDate: new Date(date.getTime() + 14 * 24 * 60 * 60 * 1000), // 14 days from order
+        customerName: buyerName
       }
     };
   };
@@ -800,11 +848,19 @@ export default function App() {
     
     const JSZip = window.JSZip;
     const zip = new JSZip();
-    const count = mode === 'MANUAL' ? 1 : quantity;
+    
+    // Cap Auto mode quantity when supplier statements with supporting invoices are enabled
+    let effectiveQuantity = mode === 'MANUAL' ? 1 : quantity;
+    if (mode === 'AUTO' && activeCategory === 'SUPPLIER' && includeSupportDocs) {
+      // Cap at 5 statements to avoid generating 100+ files
+      effectiveQuantity = Math.min(effectiveQuantity, 5);
+    }
+    
+    const count = effectiveQuantity;
     const dateStr = new Date().toISOString().slice(0,10);
     const batchName = `Mockuments_Batch_${dateStr}`;
 
-    const isZipMode = count > 1 || (activeCategory === 'SUPPLIER' && includeSupportDocs);
+    const isZipMode = count > 1 || (activeCategory === 'SUPPLIER' && includeSupportDocs) || (mode === 'MANUAL' && generatePO);
 
     try {
       for (let i = 0; i < count; i++) {
@@ -814,6 +870,7 @@ export default function App() {
         else if (activeCategory === 'SUPPLIER') data = generateSupplierStatementData();
         else if (docType.includes('Invoice') || docType.includes('Credit Note')) data = generateReceiptData(true);
         else if (activeCategory === 'VAULT') data = generateVaultData();
+        else if (docType === 'ATM Withdrawal') data = generateATMData();
         else data = generateReceiptData(false);
 
         // Don't update preview - just wait for DOM to be ready
@@ -822,19 +879,37 @@ export default function App() {
         
         await captureCanvas(mainFileName, isZipMode ? zip : null, data);
 
+        // Generate matching PO if enabled (Manual mode only)
+        if (mode === 'MANUAL' && generatePO && docType.includes('Invoice') && !docType.includes('Credit')) {
+          const poData = generatePOData();
+          await new Promise(r => setTimeout(r, 50));
+          const poFileName = `${activeCategory}_PurchaseOrder_${poData.meta.poNumber}_${dateStr}.pdf`;
+          await captureCanvas(poFileName, zip, poData);
+        }
+
         if (activeCategory === 'SUPPLIER' && includeSupportDocs) {
           const stmtSupplier = data.supplier;
-          for (let j = 0; j < data.lines.length; j++) {
+          // Use the configured invoice count instead of data.lines.length
+          const invoiceCount = Math.min(supplierStatementInvoiceCount, data.lines.length);
+          
+          for (let j = 0; j < invoiceCount; j++) {
             const line = data.lines[j];
+            
+            // Calculate tax and subtotal correctly
+            const rate = REGIONS[region].taxRate;
+            const invTotal = parseFloat(line.amount);
+            const invTax = (invTotal - (invTotal / (1 + rate))).toFixed(2);
+            const invSubtotal = (invTotal - parseFloat(invTax)).toFixed(2);
+            
             const linkedInvData = {
               type: 'INVOICE',
               supplier: stmtSupplier,
               address: data.address,
               date: line.date,
               total: line.amount,
-              tax: (parseFloat(line.amount) * 0.2).toFixed(2), 
-              lines: [{ desc: line.desc, qty: 1, amount: line.amount }],
-              meta: { poNumber: line.ref, authCode: 'LINKED' }
+              tax: invTax,
+              lines: [{ desc: line.desc, qty: 1, amount: invSubtotal }],
+              meta: { poNumber: line.ref, authCode: 'LINKED', customerName: 'Generic Corp Ltd.' }
             };
             await new Promise(r => setTimeout(r, 50));
             await captureCanvas(`${stmtSupplier}_Invoice_${line.ref}.pdf`, zip, linkedInvData);
@@ -850,6 +925,8 @@ export default function App() {
         link.href = URL.createObjectURL(content);
         if (activeCategory === 'SUPPLIER' && includeSupportDocs) {
              link.download = `${previewData.supplier}_Package_${dateStr}.zip`;
+        } else if (mode === 'MANUAL' && generatePO) {
+             link.download = `Invoice_PO_Package_${dateStr}.zip`;
         } else {
              link.download = `${batchName}.zip`;
         }
@@ -1118,6 +1195,91 @@ export default function App() {
     </div>
   );
 
+  const renderPO = (data = previewData) => (
+    <div className="w-[595px] h-[842px] bg-white p-12 font-sans relative shadow-xl mx-auto text-gray-800">
+      <div className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-20" style={{backgroundImage: `url("${PAPER_NOISE}")`}}></div>
+      
+      <div className="flex justify-between items-start mb-12 relative z-10">
+        <div>
+          <h1 className="text-4xl font-bold text-gray-900 tracking-tight">PURCHASE ORDER</h1>
+          <p className="text-sm mt-2 font-medium">#{data.meta.poNumber}</p>
+        </div>
+        <div className="text-right">
+          <h2 className="font-bold text-lg">{data.buyer}</h2>
+          <div className="text-xs text-gray-500 max-w-[150px] ml-auto mt-1">100 Business Park, Tech City</div>
+        </div>
+      </div>
+
+      <div className="flex justify-between mb-12 relative z-10">
+        <div className="w-1/3">
+          <h3 className="text-xs font-bold uppercase text-gray-400 mb-1">Vendor:</h3>
+          <p className="font-bold">{data.supplier}</p>
+          <p className="text-xs">{data.address}</p>
+        </div>
+        <div className="w-1/3 text-right">
+          <div className="flex justify-between mb-1">
+             <span className="text-xs font-bold text-gray-400">Order Date:</span>
+             <span className="text-sm">{formatDate(data.date, REGIONS[region].locale)}</span>
+          </div>
+          <div className="flex justify-between">
+             <span className="text-xs font-bold text-gray-400">Expected Delivery:</span>
+             <span className="text-sm">{formatDate(data.meta.deliveryDate, REGIONS[region].locale)}</span>
+          </div>
+        </div>
+      </div>
+
+      <table className="w-full text-sm mb-8 relative z-10">
+        <thead className="border-b-2 border-gray-800">
+          <tr>
+            <th className="text-left py-2 w-1/2">Description</th>
+            <th className="text-center py-2">Qty</th>
+            <th className="text-right py-2">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.lines.map((l, i) => (
+            <tr key={i} className="border-b border-gray-200">
+              <td className="py-3">{l.desc}</td>
+              <td className="text-center py-3">{l.qty || 1}</td>
+              <td className="text-right py-3">{formatCurrency(l.amount, REGIONS[region].currency)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div className="flex justify-end relative z-10">
+        <div className="w-1/2 space-y-2">
+           <div className="flex justify-between text-sm">
+             <span>Subtotal</span>
+             <span>{formatCurrency(parseFloat(data.total) - parseFloat(data.tax), REGIONS[region].currency)}</span>
+           </div>
+           <div className="flex justify-between text-sm">
+             <span>{REGIONS[region].taxLabel} ({REGIONS[region].taxRate*100}%)</span>
+             <span>{formatCurrency(data.tax, REGIONS[region].currency)}</span>
+           </div>
+           <div className="flex justify-between text-xl font-bold border-t border-gray-800 pt-2 mt-2">
+             <span>Total</span>
+             <span>{formatCurrency(data.total, REGIONS[region].currency)}</span>
+           </div>
+        </div>
+      </div>
+
+      {/* Authorization footer */}
+      <div className="absolute bottom-12 left-12 right-12 pt-8 border-t border-gray-300 relative z-10">
+        <div className="flex justify-between text-xs text-gray-500">
+          <div>
+            <p className="font-bold text-gray-700 mb-1">Authorized By:</p>
+            <p className="text-gray-400">___________________________</p>
+          </div>
+          <div className="text-right">
+            <p className="font-bold text-gray-700 mb-1">Date:</p>
+            <p className="text-gray-400">___________________________</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   const renderVault = () => (
     <div className="w-[595px] h-[842px] bg-[#fdfdfd] p-16 font-serif text-justify leading-relaxed relative shadow-xl mx-auto text-gray-800">
       <div className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-20" style={{backgroundImage: `url("${PAPER_NOISE}")`}}></div>
@@ -1350,7 +1512,7 @@ export default function App() {
           </div>
 
           <div className={`p-4 ${theme.border} border-t text-xs ${theme.textMuted} opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100 whitespace-nowrap overflow-hidden`}>
-            <p>Dext OCR Testing Tool</p>
+            <p>OCR Testing Tool</p>
             <p>v2.3 • React</p>
           </div>
         </div>
@@ -1472,9 +1634,29 @@ export default function App() {
                     onChange={(e) => setIncludeSupportDocs(e.target.checked)}
                     className="mt-1 accent-[#FF5A02]" 
                   />
-                  <div>
+                  <div className="flex-1">
                     <label htmlFor="linkDocs" className={`text-sm font-bold ${theme.textMain} block`}>Include Supporting Invoices</label>
                     <p className={`text-[10px] ${theme.textMuted} mt-1`}>Generates individual PDF invoices for every line item, zipped together.</p>
+                    
+                    {/* Invoice count input - show when supporting invoices enabled */}
+                    {includeSupportDocs && (
+                      <div className="mt-3 flex items-center gap-2">
+                        <label htmlFor="invoiceCount" className={`text-xs ${theme.textMuted}`}>Invoices per statement:</label>
+                        <input 
+                          type="number"
+                          id="invoiceCount"
+                          value={supplierStatementInvoiceCount}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 3;
+                            setSupplierStatementInvoiceCount(Math.max(3, Math.min(20, val)));
+                          }}
+                          min="3"
+                          max="20"
+                          className={`w-16 ${theme.bgInput} ${theme.borderInput} border rounded-md px-2 py-1 text-xs ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
+                        />
+                        <span className={`text-[10px] ${theme.textMuted}`}>(3-20)</span>
+                      </div>
+                    )}
                   </div>
                </div>
             )}
@@ -1494,6 +1676,23 @@ export default function App() {
                     <p className={`text-[10px] ${theme.textMuted} mt-1`}>
                       {mode === 'MANUAL' ? 'Enter a custom PO number below.' : 'Automatically generates a PO number for each invoice.'}
                     </p>
+                  </div>
+               </div>
+            )}
+
+            {/* NEW: Generate matching PO document (Manual mode only) */}
+            {mode === 'MANUAL' && includePO && activeCategory === 'COSTS' && docType.includes('Invoice') && !docType.includes('Credit') && (
+               <div className={`p-3 ${theme.bgCard} rounded border ${theme.borderInput} flex items-start gap-3 animate-fade-in-up`}>
+                  <input 
+                    type="checkbox" 
+                    id="generatePO"
+                    checked={generatePO}
+                    onChange={(e) => setGeneratePO(e.target.checked)}
+                    className="mt-1 accent-[#FF5A02]" 
+                  />
+                  <div>
+                    <label htmlFor="generatePO" className={`text-sm font-bold ${theme.textMain} block`}>Generate Matching Purchase Order</label>
+                    <p className={`text-[10px] ${theme.textMuted} mt-1`}>Creates a PO document matching the invoice details. Preview it using the tabs above.</p>
                   </div>
                </div>
             )}
@@ -1714,7 +1913,22 @@ export default function App() {
                   }`}
                 >
                   {isSuccess ? <CheckCircle2 size={18} /> : <Download size={18} />}
-                  {isSuccess ? 'Success!' : (mode === 'MANUAL' ? 'Generate PDF' : `Generate ${quantity} PDFs`)}
+                  {isSuccess ? 'Success!' : (() => {
+                    if (mode === 'MANUAL') {
+                      // Manual mode: Show PO count if enabled
+                      if (generatePO && docType.includes('Invoice') && !docType.includes('Credit')) {
+                        return 'Generate Invoice + PO';
+                      }
+                      return 'Generate PDF';
+                    } else {
+                      // Auto mode: Show supplier statement count if applicable
+                      if (activeCategory === 'SUPPLIER' && includeSupportDocs) {
+                        const totalFiles = quantity + (quantity * supplierStatementInvoiceCount);
+                        return `Generate ${totalFiles} PDFs (${quantity} Statements + ${quantity * supplierStatementInvoiceCount} Invoices)`;
+                      }
+                      return `Generate ${quantity} PDFs`;
+                    }
+                  })()}
                 </button>
              )}
           </div>
@@ -1728,6 +1942,32 @@ export default function App() {
               <div className={`${theme.textMuted} text-xs uppercase tracking-widest font-semibold flex items-center gap-2 sticky top-0 ${theme.bgPreview} z-20 py-2 transition-colors duration-500`}>
                  <Settings size={12} /> Live Preview: {previewData.type}
               </div>
+
+              {/* Preview Tabs - only show for Invoice with PO generation enabled */}
+              {generatePO && mode === 'MANUAL' && docType.includes('Invoice') && !docType.includes('Credit') && (
+                <div className={`flex gap-2 ${theme.bgCard} p-1 rounded-lg`}>
+                  <button
+                    onClick={() => setPreviewMode('invoice')}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                      previewMode === 'invoice' 
+                        ? `${theme.bgPanel} ${theme.textMain} shadow-sm` 
+                        : theme.textMuted
+                    }`}
+                  >
+                    Invoice
+                  </button>
+                  <button
+                    onClick={() => setPreviewMode('po')}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                      previewMode === 'po' 
+                        ? `${theme.bgPanel} ${theme.textMain} shadow-sm` 
+                        : theme.textMuted
+                    }`}
+                  >
+                    Purchase Order
+                  </button>
+                </div>
+              )}
 
               {/* PREVIEW DOCUMENT */}
               <div className="flex-1 w-full flex justify-center min-h-0 my-4">
@@ -1751,7 +1991,8 @@ export default function App() {
                       >
                           {previewData.type === 'RECEIPT' && renderReceipt()}
                           {previewData.type === 'ATM' && renderATM()}
-                          {(previewData.type === 'INVOICE' || previewData.type === 'CREDIT_NOTE') && renderInvoice()}
+                          {(previewData.type === 'INVOICE' || previewData.type === 'CREDIT_NOTE') && previewMode === 'invoice' && renderInvoice()}
+                          {previewMode === 'po' && renderPO(generatePOData())}
                           {previewData.type === 'VAULT' && renderVault()}
                           {previewData.type === 'BANK' && renderBankStatement()}
                           {previewData.type === 'STATEMENT' && renderSupplierStatement()}
@@ -1806,6 +2047,7 @@ export default function App() {
             {captureData.type === 'RECEIPT' && renderReceipt(captureData)}
             {captureData.type === 'ATM' && renderATM(captureData)}
             {(captureData.type === 'INVOICE' || captureData.type === 'CREDIT_NOTE') && renderInvoice(captureData)}
+            {captureData.type === 'PO' && renderPO(captureData)}
             {captureData.type === 'VAULT' && renderVault(captureData)}
             {captureData.type === 'BANK' && renderBankStatement(captureData)}
             {captureData.type === 'STATEMENT' && renderSupplierStatement(captureData)}
