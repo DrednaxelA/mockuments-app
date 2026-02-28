@@ -361,6 +361,15 @@ export default function App() {
     }
   }, [region, docType, mode, activeCategory, selectedTemplates]);
 
+  // Reset preview mode when switching away from PO-enabled invoices
+  useEffect(() => {
+    // Reset to invoice preview if we're no longer on a PO-enabled invoice
+    const isPOEnabledInvoice = mode === 'MANUAL' && generatePO && activeCategory === 'COSTS' && docType.includes('Invoice') && !docType.includes('Credit');
+    if (!isPOEnabledInvoice && previewMode === 'po') {
+      setPreviewMode('invoice');
+    }
+  }, [activeCategory, docType, generatePO, mode, previewMode]);
+
   // Update supplier statement lines when invoice count changes (without regenerating everything)
   useEffect(() => {
     if (activeCategory === 'SUPPLIER' && previewData.type === 'STATEMENT' && !isGenerating) {
@@ -1306,7 +1315,7 @@ export default function App() {
       </div>
 
       {/* Authorization footer */}
-      <div className="absolute bottom-12 left-12 right-12 pt-8 border-t border-gray-300 relative z-10">
+      <div className="mt-16 pt-8 border-t border-gray-300 relative z-10">
         <div className="flex justify-between text-xs text-gray-500">
           <div>
             <p className="font-bold text-gray-700 mb-1">Authorized By:</p>
@@ -2005,7 +2014,7 @@ export default function App() {
               </div>
 
               {/* Preview Tabs - only show for Invoice with PO generation enabled */}
-              {generatePO && mode === 'MANUAL' && docType.includes('Invoice') && !docType.includes('Credit') && (
+              {generatePO && mode === 'MANUAL' && activeCategory === 'COSTS' && docType.includes('Invoice') && !docType.includes('Credit') && (
                 <div className={`flex gap-2 ${theme.bgCard} p-1 rounded-lg`}>
                   <button
                     onClick={() => setPreviewMode('invoice')}
