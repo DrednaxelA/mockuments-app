@@ -361,6 +361,46 @@ export default function App() {
     }
   }, [region, docType, mode, activeCategory, selectedTemplates]);
 
+  // Update supplier statement lines when invoice count changes (without regenerating everything)
+  useEffect(() => {
+    if (activeCategory === 'SUPPLIER' && previewData.type === 'STATEMENT' && !isGenerating) {
+      setPreviewData(prev => {
+        // Keep existing lines if we have enough, or generate more if needed
+        const currentLines = prev.lines || [];
+        const targetCount = supplierStatementInvoiceCount;
+        
+        let newLines;
+        if (currentLines.length >= targetCount) {
+          // Just slice to the right length
+          newLines = currentLines.slice(0, targetCount);
+        } else {
+          // Need to generate more lines
+          newLines = [...currentLines];
+          for (let i = currentLines.length; i < targetCount; i++) {
+            const amount = Math.random() * 500 + 50;
+            const date = new Date();
+            date.setDate(date.getDate() - (Math.random() * 30));
+            newLines.push({
+              date: date,
+              ref: `INV-${Math.floor(Math.random() * 10000)}`,
+              amount: amount.toFixed(2),
+              desc: "Services Rendered"
+            });
+          }
+        }
+        
+        // Recalculate total
+        const totalDue = newLines.reduce((sum, line) => sum + parseFloat(line.amount), 0);
+        
+        return {
+          ...prev,
+          lines: newLines,
+          total: totalDue.toFixed(2)
+        };
+      });
+    }
+  }, [supplierStatementInvoiceCount, activeCategory, previewData.type]);
+
   // NEW: Update preview directly when manual data changes (don't regenerate everything)
   useEffect(() => {
     if (mode === 'MANUAL' && !isGenerating && previewData.supplier) {
@@ -633,7 +673,7 @@ export default function App() {
     };
   };
 
-  const generatePOData = () => {
+  const generatePOData = (invoicePoNumber = null) => {
     // PO is from buyer's perspective - buyer issues PO to supplier
     const rData = DUMMY_DATA[region];
     const supplier = mode === 'MANUAL' ? manualData.supplier : getRandomElement(rData.suppliers);
@@ -664,7 +704,8 @@ export default function App() {
       tax,
       lines,
       meta: {
-        poNumber: mode === 'MANUAL' && manualData.poNumber ? manualData.poNumber : `PO-${Math.floor(Math.random() * 100000)}`,
+        // Use the invoice's PO number if provided, otherwise generate one
+        poNumber: invoicePoNumber || (mode === 'MANUAL' && manualData.poNumber ? manualData.poNumber : `PO-${Math.floor(Math.random() * 100000)}`),
         authCode: Math.random().toString(36).substring(7).toUpperCase(),
         deliveryDate: new Date(date.getTime() + 14 * 24 * 60 * 60 * 1000), // 14 days from order
         customerName: buyerName
@@ -852,8 +893,8 @@ export default function App() {
     // Cap Auto mode quantity when supplier statements with supporting invoices are enabled
     let effectiveQuantity = mode === 'MANUAL' ? 1 : quantity;
     if (mode === 'AUTO' && activeCategory === 'SUPPLIER' && includeSupportDocs) {
-      // Cap at 5 statements to avoid generating 100+ files
-      effectiveQuantity = Math.min(effectiveQuantity, 5);
+      // Cap at 10 statements to avoid generating 100+ files (10 statements × 10 invoices max = 100 files)
+      effectiveQuantity = Math.min(effectiveQuantity, 10);
     }
     
     const count = effectiveQuantity;
@@ -881,7 +922,7 @@ export default function App() {
 
         // Generate matching PO if enabled (Manual mode only)
         if (mode === 'MANUAL' && generatePO && docType.includes('Invoice') && !docType.includes('Credit')) {
-          const poData = generatePOData();
+          const poData = generatePOData(data.meta?.poNumber);
           await new Promise(r => setTimeout(r, 50));
           const poFileName = `${activeCategory}_PurchaseOrder_${poData.meta.poNumber}_${dateStr}.pdf`;
           await captureCanvas(poFileName, zip, poData);
@@ -1648,13 +1689,13 @@ export default function App() {
                           value={supplierStatementInvoiceCount}
                           onChange={(e) => {
                             const val = parseInt(e.target.value) || 3;
-                            setSupplierStatementInvoiceCount(Math.max(3, Math.min(20, val)));
+                            setSupplierStatementInvoiceCount(Math.max(3, Math.min(10, val)));
                           }}
                           min="3"
-                          max="20"
+                          max="10"
                           className={`w-16 ${theme.bgInput} ${theme.borderInput} border rounded-md px-2 py-1 text-xs ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
                         />
-                        <span className={`text-[10px] ${theme.textMuted}`}>(3-20)</span>
+                        <span className={`text-[10px] ${theme.textMuted}`}>(3-10)</span>
                       </div>
                     )}
                   </div>
@@ -1908,25 +1949,45 @@ export default function App() {
                   onClick={generatePDFs}
                   onMouseEnter={() => isSuccess && setIsSuccess(false)} 
                   disabled={!libsLoaded}
-                  className={`w-full h-12 font-bold rounded-md flex items-center justify-center gap-2 transition-all duration-1000 ease-in-out disabled:opacity-50 focus:outline-none ${
+                  className={`w-full min-h-12 font-bold rounded-md flex items-center justify-center gap-2 transition-all duration-1000 ease-in-out disabled:opacity-50 focus:outline-none py-2 ${
                      isSuccess ? 'bg-[#C6F0D8] text-[#121212] hover:bg-[#C6F0D8]' : 'bg-[#FF5A02] hover:bg-[#ff7a33] text-[#121212]'
                   }`}
                 >
                   {isSuccess ? <CheckCircle2 size={18} /> : <Download size={18} />}
-                  {isSuccess ? 'Success!' : (() => {
+                  {isSuccess ? (
+                    <span>Success!</span>
+                  ) : (() => {
                     if (mode === 'MANUAL') {
-                      // Manual mode: Show PO count if enabled
-                      if (generatePO && docType.includes('Invoice') && !docType.includes('Credit')) {
-                        return 'Generate Invoice + PO';
+                      // Manual mode: Show supplier statement count if applicable
+                      if (activeCategory === 'SUPPLIER' && includeSupportDocs) {
+                        const totalFiles = 1 + supplierStatementInvoiceCount;
+                        const invText = supplierStatementInvoiceCount === 1 ? 'Invoice' : 'Invoices';
+                        return (
+                          <div className="flex flex-col items-center leading-tight">
+                            <span className="font-bold">Generate {totalFiles} PDFs</span>
+                            <span className="text-xs font-normal mt-0.5">1 Statement + {supplierStatementInvoiceCount} {invText}</span>
+                          </div>
+                        );
                       }
-                      return 'Generate PDF';
+                      // Show PO count if enabled
+                      if (generatePO && docType.includes('Invoice') && !docType.includes('Credit')) {
+                        return <span>Generate Invoice + PO</span>;
+                      }
+                      return <span>Generate PDF</span>;
                     } else {
                       // Auto mode: Show supplier statement count if applicable
                       if (activeCategory === 'SUPPLIER' && includeSupportDocs) {
                         const totalFiles = quantity + (quantity * supplierStatementInvoiceCount);
-                        return `Generate ${totalFiles} PDFs (${quantity} Statements + ${quantity * supplierStatementInvoiceCount} Invoices)`;
+                        const stmtText = quantity === 1 ? 'Statement' : 'Statements';
+                        const invText = (quantity * supplierStatementInvoiceCount) === 1 ? 'Invoice' : 'Invoices';
+                        return (
+                          <div className="flex flex-col items-center leading-tight">
+                            <span className="font-bold">Generate {totalFiles} PDFs</span>
+                            <span className="text-xs font-normal mt-0.5">{quantity} {stmtText} + {quantity * supplierStatementInvoiceCount} {invText}</span>
+                          </div>
+                        );
                       }
-                      return `Generate ${quantity} PDFs`;
+                      return <span>Generate {quantity} PDFs</span>;
                     }
                   })()}
                 </button>
@@ -1992,7 +2053,7 @@ export default function App() {
                           {previewData.type === 'RECEIPT' && renderReceipt()}
                           {previewData.type === 'ATM' && renderATM()}
                           {(previewData.type === 'INVOICE' || previewData.type === 'CREDIT_NOTE') && previewMode === 'invoice' && renderInvoice()}
-                          {previewMode === 'po' && renderPO(generatePOData())}
+                          {previewMode === 'po' && renderPO(generatePOData(previewData.meta?.poNumber))}
                           {previewData.type === 'VAULT' && renderVault()}
                           {previewData.type === 'BANK' && renderBankStatement()}
                           {previewData.type === 'STATEMENT' && renderSupplierStatement()}
