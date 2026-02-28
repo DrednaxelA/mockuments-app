@@ -28,6 +28,7 @@ const REGIONS = {
   UK: { label: 'United Kingdom', currency: '£', locale: 'en-GB', taxLabel: 'VAT', taxRate: 0.20, dateFormat: 'DD/MM/YYYY' },
   AU: { label: 'Australia', currency: '$', locale: 'en-AU', taxLabel: 'ABN', taxRate: 0.10, dateFormat: 'DD/MM/YYYY' },
   US: { label: 'United States', currency: '$', locale: 'en-US', taxLabel: 'Tax ID', taxRate: 0.07, dateFormat: 'MM/DD/YYYY' },
+  CA: { label: 'Canada', currency: '$', locale: 'en-CA', taxLabel: 'GST/HST', taxRate: 0.13, dateFormat: 'YYYY-MM-DD' },
   FR: { label: 'France', currency: '€', locale: 'fr-FR', taxLabel: 'TVA', taxRate: 0.20, dateFormat: 'DD/MM/YYYY' },
 };
 
@@ -41,20 +42,89 @@ const CATEGORIES = {
 
 const DUMMY_DATA = {
   UK: {
-    suppliers: ["Joe's Coffee", "The London Pub", "British Gas", "Thames Water", "Tesco Express", "Global Bank Inc.", "Barclays"],
-    addresses: ["45 O'Connell St, London, EC1A 1BB", "10 Downing St, London", "221B Baker St, London"],
+    suppliers: [
+      "Joe's Coffee", "The London Pub", "British Gas", "Thames Water", "Tesco Express", 
+      "Global Bank Inc.", "Barclays", "Pret A Manger", "Boots Pharmacy", "Sainsbury's Local",
+      "Costa Coffee", "Greggs", "Marks & Spencer", "John Lewis", "Waitrose", 
+      "EE Mobile", "Virgin Media", "Sky Broadband", "Morrisons", "Asda Supermarket",
+      "Waterstones", "WHSmith", "Caffè Nero", "Nando's", "Pizza Express",
+      "Lloyds Bank", "NatWest", "HSBC UK", "Santander UK"
+    ],
+    addresses: [
+      "45 O'Connell St, London, EC1A 1BB", "10 Downing St, London", "221B Baker St, London",
+      "15 Oxford Street, London, W1D 1BS", "89 King's Road, Chelsea, London, SW3 4NX",
+      "42 Market Street, Manchester, M1 1PW", "7 Princes Street, Edinburgh, EH2 2BY",
+      "23 Queen Street, Cardiff, CF10 2BU", "56 Bold Street, Liverpool, L1 4HR"
+    ],
   },
   AU: {
-    suppliers: ["Outback Bistro", "4Birds Pty Ltd", "Sydney Tech Supplies", "Woolworths", "Bunnings", "Commonwealth Bank", "ANZ"],
-    addresses: ["123 George St, Sydney, NSW 2000", "42 Wallaby Way, Sydney"],
+    suppliers: [
+      "Outback Bistro", "4Birds Pty Ltd", "Sydney Tech Supplies", "Woolworths", "Bunnings",
+      "Commonwealth Bank", "ANZ", "Westpac", "NAB", "Coles Supermarket",
+      "Telstra", "Optus", "Hungry Jack's", "Red Rooster", "Boost Juice",
+      "Harvey Norman", "JB Hi-Fi", "Kmart Australia", "Target Australia", "Big W",
+      "Chemist Warehouse", "Priceline Pharmacy", "Gloria Jean's Coffees", "The Coffee Club",
+      "Officeworks", "Australia Post", "Domino's Pizza", "Subway Australia"
+    ],
+    addresses: [
+      "123 George St, Sydney, NSW 2000", "42 Wallaby Way, Sydney",
+      "88 Collins Street, Melbourne, VIC 3000", "15 Queen Street Mall, Brisbane, QLD 4000",
+      "45 Rundle Mall, Adelaide, SA 5000", "167 St Georges Terrace, Perth, WA 6000",
+      "99 Hay Street, Perth, WA 6000", "234 Flinders Street, Melbourne, VIC 3000"
+    ],
   },
   US: {
-    suppliers: ["Liberty Cafe", "Main St. Hardware", "Starbucks Corp", "Walmart Supercenter", "Chase Bank", "Bank of America"],
-    addresses: ["742 Evergreen Terrace, Springfield, IL", "1600 Penn Ave, Washington DC"],
+    suppliers: [
+      "Liberty Cafe", "Main St. Hardware", "Starbucks Corp", "Walmart Supercenter",
+      "Chase Bank", "Bank of America", "Wells Fargo", "Citibank", "Target Corporation",
+      "McDonald's", "Subway", "Dunkin' Donuts", "Chipotle Mexican Grill", "Panera Bread",
+      "CVS Pharmacy", "Walgreens", "Home Depot", "Lowe's", "Best Buy",
+      "Amazon Fulfillment", "FedEx Office", "UPS Store", "Office Depot", "Staples",
+      "AT&T Wireless", "Verizon", "T-Mobile", "Apple Store", "Microsoft Store"
+    ],
+    addresses: [
+      "742 Evergreen Terrace, Springfield, IL", "1600 Penn Ave, Washington DC",
+      "350 Fifth Avenue, New York, NY 10118", "1 Infinite Loop, Cupertino, CA 95014",
+      "1060 W Addison St, Chicago, IL 60613", "100 Universal City Plaza, Universal City, CA 91608",
+      "221 Main Street, San Francisco, CA 94105", "450 Mission Street, San Francisco, CA 94105",
+      "1 Microsoft Way, Redmond, WA 98052", "1200 Getty Center Dr, Los Angeles, CA 90049"
+    ],
+  },
+  CA: {
+    suppliers: [
+      "Tim Hortons", "Maple Leaf Supplies", "Canadian Tire", "Shoppers Drug Mart",
+      "TD Bank", "RBC Royal Bank", "Scotiabank", "BMO Bank of Montreal", "CIBC",
+      "Loblaws", "Metro Inc", "Sobeys", "London Drugs", "Rexall Pharmacy",
+      "Bell Canada", "Rogers Communications", "Telus", "Shaw Communications",
+      "The Bay", "Winners", "HomeSense", "Indigo Books", "Chapters",
+      "Boston Pizza", "Swiss Chalet", "A&W Canada", "Harvey's", "Second Cup",
+      "Staples Canada", "Home Hardware", "Rona", "PetSmart Canada"
+    ],
+    addresses: [
+      "123 Yonge Street, Toronto, ON M5B 1M4", "789 Robson St, Vancouver, BC V6Z 1A1",
+      "1055 Dunsmuir Street, Vancouver, BC V7X 1L3", "100 Queen Street W, Toronto, ON M5H 2N2",
+      "360 Albert Street, Ottawa, ON K1R 7X7", "505 Burrard Street, Vancouver, BC V7X 1M4",
+      "1 Blue Jays Way, Toronto, ON M5V 1J1", "1185 West Georgia Street, Vancouver, BC V6E 4E6",
+      "225 King Street W, Toronto, ON M5V 3M2", "1 Austin Terrace, Toronto, ON M5R 1X8"
+    ],
   },
   FR: {
-    suppliers: ["Le Bistrot de Paris", "Boulangerie Dupont", "Bouygues Telecom", "Carrefour City", "BNP Paribas", "Société Générale"],
-    addresses: ["23 Rue de Grenelle, 75700 Paris", "Champ de Mars, 5 Avenue Anatole France, Paris"],
+    suppliers: [
+      "Le Bistrot de Paris", "Boulangerie Dupont", "Bouygues Telecom", "Carrefour City",
+      "BNP Paribas", "Société Générale", "Crédit Agricole", "La Poste", "Orange France",
+      "Monoprix", "Franprix", "Casino Supermarché", "Auchan", "E.Leclerc",
+      "Pharmacie Lafayette", "Paul Boulangerie", "Brioche Dorée", "La Maison du Chocolat",
+      "Fnac", "Darty", "Leroy Merlin", "Castorama", "Décathlon",
+      "Printemps", "Galeries Lafayette", "Sephora France", "L'Occitane",
+      "SFR", "Free Mobile", "Total Énergies", "SNCF"
+    ],
+    addresses: [
+      "23 Rue de Grenelle, 75700 Paris", "Champ de Mars, 5 Avenue Anatole France, Paris",
+      "52 Avenue des Champs-Élysées, 75008 Paris", "40 Rue de Rivoli, 75004 Paris",
+      "45 Boulevard Haussmann, 75009 Paris", "128 Rue La Boétie, 75008 Paris",
+      "10 Place Vendôme, 75001 Paris", "31 Rue Cambon, 75001 Paris",
+      "2 Rue du Faubourg Saint-Honoré, 75008 Paris"
+    ],
   }
 };
 
@@ -201,6 +271,10 @@ export default function App() {
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   const [includeSupportDocs, setIncludeSupportDocs] = useState(false); 
+  const [includeBankReceipts, setIncludeBankReceipts] = useState(false); // NEW: Generate receipts for bank transactions
+  const [bankTransactionCount, setBankTransactionCount] = useState(5); // NEW: Number of transactions in bank statement
+  const [includePaymentMethod, setIncludePaymentMethod] = useState(false); // NEW: Track if user wants payment method
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false); // NEW: Track if advanced options are expanded
   const [includePO, setIncludePO] = useState(false); // NEW: Track if user wants PO number 
   const [generatePO, setGeneratePO] = useState(false); // NEW: Generate matching PO document
   const [previewMode, setPreviewMode] = useState('invoice'); // 'invoice' or 'po'
@@ -214,6 +288,7 @@ export default function App() {
     tax: "24.00",
     autoCalcTax: true,
     poNumber: "",
+    paymentMethod: "", // NEW: Last 4 digits of card
     bankAccountName: "John Doe Trading",
     bankAccountNum: "12345678"
   });
@@ -410,6 +485,63 @@ export default function App() {
     }
   }, [supplierStatementInvoiceCount, activeCategory, previewData.type]);
 
+  // Update bank statement transactions when transaction count changes (without regenerating everything)
+  useEffect(() => {
+    if (activeCategory === 'BANK' && previewData.type === 'BANK' && !isGenerating) {
+      setPreviewData(prev => {
+        const currentLines = prev.lines || [];
+        const targetCount = bankTransactionCount;
+        const openingBal = parseFloat(prev.meta?.openingBalance || 5000);
+        
+        let newLines;
+        if (currentLines.length >= targetCount) {
+          // Just slice to the right length
+          newLines = currentLines.slice(0, targetCount);
+        } else {
+          // Need to generate more transactions
+          newLines = [...currentLines];
+          const statementDate = prev.date || new Date();
+          
+          for (let i = currentLines.length; i < targetCount; i++) {
+            const isCredit = Math.random() > 0.7;
+            const amount = Math.random() * 200 + 10;
+            
+            const txnDate = new Date(statementDate);
+            txnDate.setDate(txnDate.getDate() - (targetCount - i));
+            
+            newLines.push({
+              date: txnDate,
+              desc: isCredit ? "Deposit" : getRandomElement(["Payment", "Direct Debit", "Card Purchase", "ATM"]),
+              debit: isCredit ? "" : amount.toFixed(2),
+              credit: isCredit ? amount.toFixed(2) : "",
+              balance: "0.00" // Will be recalculated below
+            });
+          }
+        }
+        
+        // Recalculate running balances for all transactions
+        let runningBal = openingBal;
+        const rebalancedLines = newLines.map(txn => {
+          if (txn.credit && parseFloat(txn.credit) > 0) {
+            runningBal += parseFloat(txn.credit);
+          } else if (txn.debit && parseFloat(txn.debit) > 0) {
+            runningBal -= parseFloat(txn.debit);
+          }
+          return {
+            ...txn,
+            balance: runningBal.toFixed(2)
+          };
+        });
+        
+        return {
+          ...prev,
+          lines: rebalancedLines,
+          total: runningBal.toFixed(2) // Closing balance
+        };
+      });
+    }
+  }, [bankTransactionCount, activeCategory, previewData.type]);
+
   // NEW: Update preview directly when manual data changes (don't regenerate everything)
   useEffect(() => {
     if (mode === 'MANUAL' && !isGenerating && previewData.supplier) {
@@ -467,14 +599,17 @@ export default function App() {
           customerName: customerName,
           dueDate: manualData.dueDate ? new Date(manualData.dueDate) : prev.meta?.dueDate,
           poNumber: includePO 
-            ? (manualData.poNumber || `PO-${Math.floor(Math.random() * 100000)}`)
+            ? (manualData.poNumber || prev.meta?.poNumber || `PO-${Math.floor(Math.random() * 100000)}`)
+            : null,
+          paymentMethod: includePaymentMethod
+            ? (manualData.paymentMethod || prev.meta?.paymentMethod || null)
             : null,
           accountName: manualData.bankAccountName || 'John Doe Trading',
           accountNum: manualData.bankAccountNum || '12345678'
         }
       }));
     }
-  }, [manualData, mode, includePO, activeCategory, stableRandomSupplier, region]);
+  }, [manualData, mode, includePO, includePaymentMethod, activeCategory, stableRandomSupplier, region]);
 
   // NEW: Handle PO checkbox changes in AUTO mode
   useEffect(() => {
@@ -488,6 +623,19 @@ export default function App() {
       }));
     }
   }, [includePO, mode]);
+
+  // NEW: Handle Payment Method checkbox changes in AUTO mode
+  useEffect(() => {
+    if (mode === 'AUTO' && !isGenerating && previewData.meta) {
+      setPreviewData(prev => ({
+        ...prev,
+        meta: {
+          ...prev.meta,
+          paymentMethod: includePaymentMethod ? Math.floor(Math.random() * 10000).toString().padStart(4, '0') : null
+        }
+      }));
+    }
+  }, [includePaymentMethod, mode]);
 
   useEffect(() => {
     const iconColor = isDarkMode ? '#121212' : '#ffffff';
@@ -520,7 +668,7 @@ export default function App() {
   const generateBankData = () => {
     const rData = DUMMY_DATA[region];
     const openingBal = Math.random() * 5000 + 1000;
-    const numTxns = mode === 'AUTO' ? Math.floor(Math.random() * 10) + 5 : 5;
+    const numTxns = bankTransactionCount; // Use configured transaction count
     let runningBal = openingBal;
     const transactions = [];
 
@@ -673,6 +821,9 @@ export default function App() {
       meta: {
         poNumber: includePO 
           ? (mode === 'MANUAL' && manualData.poNumber ? manualData.poNumber : `PO-${Math.floor(Math.random() * 100000)}`)
+          : null,
+        paymentMethod: includePaymentMethod
+          ? (mode === 'MANUAL' && manualData.paymentMethod ? manualData.paymentMethod : Math.floor(Math.random() * 10000).toString().padStart(4, '0'))
           : null,
         authCode: Math.random().toString(36).substring(7).toUpperCase(),
         dueDate: dueDate,
@@ -910,7 +1061,7 @@ export default function App() {
     const dateStr = new Date().toISOString().slice(0,10);
     const batchName = `Mockuments_Batch_${dateStr}`;
 
-    const isZipMode = count > 1 || (activeCategory === 'SUPPLIER' && includeSupportDocs) || (mode === 'MANUAL' && generatePO);
+    const isZipMode = count > 1 || (activeCategory === 'SUPPLIER' && includeSupportDocs) || (activeCategory === 'BANK' && includeBankReceipts) || (mode === 'MANUAL' && generatePO);
 
     try {
       for (let i = 0; i < count; i++) {
@@ -966,6 +1117,45 @@ export default function App() {
           }
           await new Promise(r => setTimeout(r, 50));
         }
+
+        // Generate receipts for bank statement transactions (if enabled)
+        if (activeCategory === 'BANK' && includeBankReceipts) {
+          const bankName = data.supplier;
+          // Filter for debit transactions (expenses)
+          const debitTransactions = data.lines.filter(txn => txn.debit && parseFloat(txn.debit) > 0);
+          
+          for (let j = 0; j < debitTransactions.length; j++) {
+            const txn = debitTransactions[j];
+            const txnAmount = parseFloat(txn.debit);
+            
+            // Calculate tax and subtotal correctly
+            const rate = REGIONS[region].taxRate;
+            const txnTax = (txnAmount - (txnAmount / (1 + rate))).toFixed(2);
+            const txnSubtotal = (txnAmount - parseFloat(txnTax)).toFixed(2);
+            
+            // Generate merchant name from transaction description
+            const merchantName = txn.desc.includes('Purchase') ? 'Merchant Services' 
+                               : txn.desc.includes('ATM') ? bankName
+                               : txn.desc.includes('Debit') ? 'Direct Debit Provider'
+                               : 'Payment Vendor';
+            
+            const receiptData = {
+              type: 'RECEIPT',
+              supplier: merchantName,
+              address: data.address,
+              date: txn.date,
+              total: txn.debit,
+              tax: txnTax,
+              lines: [{ desc: txn.desc, qty: 1, amount: txnSubtotal }],
+              meta: { authCode: `TXN-${Math.random().toString(36).substring(7).toUpperCase()}` }
+            };
+            await new Promise(r => setTimeout(r, 50));
+            const txnRef = `${txn.date.toISOString().split('T')[0]}_${j+1}`;
+            await captureCanvas(`${bankName.replace(/\s/g,'')}_Receipt_${txnRef}.pdf`, zip, receiptData);
+          }
+          await new Promise(r => setTimeout(r, 50));
+        }
+
         setProgress(Math.round(((i + 1) / count) * 100));
       }
 
@@ -975,6 +1165,8 @@ export default function App() {
         link.href = URL.createObjectURL(content);
         if (activeCategory === 'SUPPLIER' && includeSupportDocs) {
              link.download = `${previewData.supplier}_Package_${dateStr}.zip`;
+        } else if (activeCategory === 'BANK' && includeBankReceipts) {
+             link.download = `${previewData.supplier}_BankReconciliation_${dateStr}.zip`;
         } else if (mode === 'MANUAL' && generatePO) {
              link.download = `Invoice_PO_Package_${dateStr}.zip`;
         } else {
@@ -1046,6 +1238,13 @@ export default function App() {
              <span>{formatCurrency(previewData.total, REGIONS[region].currency)}</span>
            </div>
          </div>
+
+         {/* Payment Method */}
+         {data.meta?.paymentMethod && (
+           <div className="mt-4 text-center text-[10px] text-gray-600 relative z-10">
+             Payment: Card ending ••••{data.meta.paymentMethod}
+           </div>
+         )}
 
          <div className="mt-8 text-center font-bold text-gray-500">
            <div className="text-[10px]"> थैंक यू • MERCI • GRAZIE • THANKS </div>
@@ -1242,6 +1441,13 @@ export default function App() {
            </div>
         </div>
       </div>
+
+      {/* Payment Method */}
+      {previewData.meta?.paymentMethod && (
+        <div className="mt-8 text-right text-xs text-gray-600 relative z-10">
+          Payment: Card ending ••••{previewData.meta.paymentMethod}
+        </div>
+      )}
     </div>
   );
 
@@ -1592,12 +1798,12 @@ export default function App() {
               </div>
             </div>
             
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-5 gap-2">
               {Object.keys(REGIONS).map((r) => (
                 <button
                   key={r}
                   onClick={() => setRegion(r)}
-                  className={`py-2 rounded-md text-sm font-medium transition-colors border ${
+                  className={`py-2 px-1 rounded-md text-sm font-medium transition-colors border ${
                     region === r ? `${theme.bgCard} ${theme.borderHighlight} ${theme.accentText}` : `${theme.bgCard} border-transparent ${theme.textMuted}`
                   }`}
                 >
@@ -1673,79 +1879,6 @@ export default function App() {
                 </div>
               )}
             </div>
-
-            {/* [All your existing manual/auto inputs - keeping them exactly as they are] */}
-            {activeCategory === 'SUPPLIER' && (
-               <div className={`p-3 ${theme.bgCard} rounded border ${theme.borderInput} flex items-start gap-3`}>
-                  <input 
-                    type="checkbox" 
-                    id="linkDocs"
-                    checked={includeSupportDocs}
-                    onChange={(e) => setIncludeSupportDocs(e.target.checked)}
-                    className="mt-1 accent-[#FF5A02]" 
-                  />
-                  <div className="flex-1">
-                    <label htmlFor="linkDocs" className={`text-sm font-bold ${theme.textMain} block`}>Include Supporting Invoices</label>
-                    <p className={`text-[10px] ${theme.textMuted} mt-1`}>Generates individual PDF invoices for every line item, zipped together.</p>
-                    
-                    {/* Invoice count input - show when supporting invoices enabled */}
-                    {includeSupportDocs && (
-                      <div className="mt-3 flex items-center gap-2">
-                        <label htmlFor="invoiceCount" className={`text-xs ${theme.textMuted}`}>Invoices per statement:</label>
-                        <input 
-                          type="number"
-                          id="invoiceCount"
-                          value={supplierStatementInvoiceCount}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value) || 3;
-                            setSupplierStatementInvoiceCount(Math.max(3, Math.min(10, val)));
-                          }}
-                          min="3"
-                          max="10"
-                          className={`w-16 ${theme.bgInput} ${theme.borderInput} border rounded-md px-2 py-1 text-xs ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
-                        />
-                        <span className={`text-[10px] ${theme.textMuted}`}>(3-10)</span>
-                      </div>
-                    )}
-                  </div>
-               </div>
-            )}
-
-            {/* NEW: PO Number toggle for Invoices */}
-            {activeCategory === 'COSTS' && docType.includes('Invoice') && !docType.includes('Credit') && (
-               <div className={`p-3 ${theme.bgCard} rounded border ${theme.borderInput} flex items-start gap-3 animate-fade-in-up`}>
-                  <input 
-                    type="checkbox" 
-                    id="includePO"
-                    checked={includePO}
-                    onChange={(e) => setIncludePO(e.target.checked)}
-                    className="mt-1 accent-[#FF5A02]" 
-                  />
-                  <div>
-                    <label htmlFor="includePO" className={`text-sm font-bold ${theme.textMain} block`}>Include Purchase Order Number</label>
-                    <p className={`text-[10px] ${theme.textMuted} mt-1`}>
-                      {mode === 'MANUAL' ? 'Enter a custom PO number below.' : 'Automatically generates a PO number for each invoice.'}
-                    </p>
-                  </div>
-               </div>
-            )}
-
-            {/* NEW: Generate matching PO document (Manual mode only) */}
-            {mode === 'MANUAL' && includePO && activeCategory === 'COSTS' && docType.includes('Invoice') && !docType.includes('Credit') && (
-               <div className={`p-3 ${theme.bgCard} rounded border ${theme.borderInput} flex items-start gap-3 animate-fade-in-up`}>
-                  <input 
-                    type="checkbox" 
-                    id="generatePO"
-                    checked={generatePO}
-                    onChange={(e) => setGeneratePO(e.target.checked)}
-                    className="mt-1 accent-[#FF5A02]" 
-                  />
-                  <div>
-                    <label htmlFor="generatePO" className={`text-sm font-bold ${theme.textMain} block`}>Generate Matching Purchase Order</label>
-                    <p className={`text-[10px] ${theme.textMuted} mt-1`}>Creates a PO document matching the invoice details. Preview it using the tabs above.</p>
-                  </div>
-               </div>
-            )}
 
             {mode === 'MANUAL' ? (
               <>
@@ -1832,42 +1965,63 @@ export default function App() {
                           />
                         </div>
                       )}
+                    </div>
 
-                      {/* NEW: PO Number field - only for invoices when checkbox is checked */}
-                      {docType.includes('Invoice') && !docType.includes('Credit') && includePO && mode === 'MANUAL' && (
-                        <div className="space-y-1 animate-fade-in-up">
-                          <label className={`text-xs ${theme.textMuted}`}>Purchase Order Number</label>
+                    {/* Total and Tax Row - hide for ATM/BANK/SUPPLIER */}
+                    {activeCategory !== 'SUPPLIER' && activeCategory !== 'BANK' && docType !== 'ATM Withdrawal' && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center h-5">
+                            <label className={`text-xs ${theme.textMuted}`}>Total ({REGIONS[region].currency})</label>
+                          </div>
                           <input 
-                            type="text" 
-                            value={manualData.poNumber}
-                            onChange={(e) => setManualData({...manualData, poNumber: e.target.value})}
-                            maxLength={50}
+                            type="number" 
+                            value={manualData.total}
+                            onChange={(e) => setManualData({...manualData, total: e.target.value})}
+                            min="0.01"
+                            max="999999.99"
+                            step="0.01"
+                            placeholder="120.00"
                             className={`w-full ${theme.bgInput} ${theme.borderInput} border rounded-md p-2.5 text-sm ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
-                            placeholder="PO-2024-001"
                           />
                         </div>
-                      )}
 
-                      {/* Total field - hide for ATM since withdrawal amount is more specific */}
-                      {activeCategory !== 'SUPPLIER' && activeCategory !== 'BANK' && docType !== 'ATM Withdrawal' && (
-                      <div className={`space-y-1 ${docType.includes('Invoice') ? 'col-span-2' : ''}`}>
-                        <label className={`text-xs ${theme.textMuted}`}>Total ({REGIONS[region].currency})</label>
-                        <input 
-                          type="number" 
-                          value={manualData.total}
-                          onChange={(e) => setManualData({...manualData, total: e.target.value})}
-                          min="0.01"
-                          max="999999.99"
-                          step="0.01"
-                          placeholder="120.00"
-                          className={`w-full ${theme.bgInput} ${theme.borderInput} border rounded-md p-2.5 text-sm ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
-                        />
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center h-5">
+                            <label className={`text-xs ${theme.textMuted}`}>Tax ({REGIONS[region].taxLabel})</label>
+                            <button 
+                              onClick={() => setManualData(prev => ({...prev, autoCalcTax: !prev.autoCalcTax}))}
+                              className={`text-[10px] flex items-center gap-1 whitespace-nowrap ${manualData.autoCalcTax ? theme.accentText : theme.textMuted}`}
+                            >
+                              <Calculator size={10} /> Auto-Calc
+                            </button>
+                          </div>
+                          
+                          <div className="relative group">
+                            <input 
+                              type="number" 
+                              value={manualData.tax}
+                              disabled={manualData.autoCalcTax}
+                              onChange={(e) => setManualData({...manualData, tax: e.target.value, autoCalcTax: false})}
+                              min="0"
+                              max="999999.99"
+                              step="0.01"
+                              className={`w-full ${theme.bgInput} ${theme.borderInput} border rounded-md p-2.5 text-sm ${theme.textInput} focus:outline-none focus:${theme.borderHighlight} ${manualData.autoCalcTax ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            />
+                            {manualData.autoCalcTax && (
+                              <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-40 px-3 py-2 ${theme.bgInput} ${theme.border} ${theme.textMuted} rounded-md shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 text-center leading-tight text-xs`}>
+                                Disable Auto-Calc to edit manually.
+                                <div className={`absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] border-4 border-transparent border-t-${isDarkMode ? 'gray-700' : 'gray-300'}`}></div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      )}
+                    )}
 
-                      {/* Withdrawal Amount for ATM */}
-                      {docType === 'ATM Withdrawal' && (
-                      <div className="space-y-1 col-span-2">
+                    {/* Withdrawal Amount for ATM */}
+                    {docType === 'ATM Withdrawal' && (
+                      <div className="space-y-1">
                         <label className={`text-xs ${theme.textMuted}`}>Withdrawal Amount ({REGIONS[region].currency})</label>
                         <input 
                           type="number" 
@@ -1880,40 +2034,6 @@ export default function App() {
                           className={`w-full ${theme.bgInput} ${theme.borderInput} border rounded-md p-2.5 text-sm ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
                         />
                       </div>
-                      )}
-                    </div>
-                    {/* Tax field - hide for ATM withdrawals */}
-                    {activeCategory !== 'SUPPLIER' && activeCategory !== 'BANK' && docType !== 'ATM Withdrawal' && (
-                    <div className="space-y-1">
-                       <div className="flex justify-between items-center">
-                         <label className={`text-xs ${theme.textMuted}`}>Tax ({REGIONS[region].taxLabel})</label>
-                         <button 
-                           onClick={() => setManualData(prev => ({...prev, autoCalcTax: !prev.autoCalcTax}))}
-                           className={`text-[10px] flex items-center gap-1 ${manualData.autoCalcTax ? theme.accentText : theme.textMuted}`}
-                         >
-                           <Calculator size={10} /> Auto-Calc
-                         </button>
-                       </div>
-                       
-                       <div className="relative group">
-                         <input 
-                            type="number" 
-                            value={manualData.tax}
-                            disabled={manualData.autoCalcTax}
-                            onChange={(e) => setManualData({...manualData, tax: e.target.value, autoCalcTax: false})}
-                            min="0"
-                            max="999999.99"
-                            step="0.01"
-                            className={`w-full ${theme.bgInput} ${theme.borderInput} border rounded-md p-2.5 text-sm ${theme.textInput} focus:outline-none focus:${theme.borderHighlight} ${manualData.autoCalcTax ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          />
-                          {manualData.autoCalcTax && (
-                            <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-40 px-3 py-2 ${theme.bgInput} ${theme.border} ${theme.textMuted} rounded-md shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 text-center leading-tight text-xs`}>
-                                Disable Auto-Calc to edit manually.
-                                <div className={`absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] border-4 border-transparent border-t-${isDarkMode ? 'gray-700' : 'gray-300'}`}></div>
-                            </div>
-                          )}
-                       </div>
-                    </div>
                     )}
                   </>
                 ) : (
@@ -1937,6 +2057,191 @@ export default function App() {
                    />
                    <div className={`text-right text-lg font-mono ${theme.textMain}`}>{quantity} docs</div>
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Advanced Options Expandable Section */}
+          <div className={`${theme.bgCard} rounded border ${theme.borderInput}`}>
+            <button
+              onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+              className={`w-full p-3 flex items-center justify-between ${theme.textMain} hover:${theme.bgInput} transition-colors ${showAdvancedOptions ? 'rounded-t' : 'rounded'}`}
+            >
+              <div className="flex items-center gap-2">
+                <Settings size={16} className={theme.accentText} />
+                <span className="text-sm font-bold">Advanced Options</span>
+              </div>
+              <ChevronDown 
+                size={16} 
+                className={`transition-transform ${showAdvancedOptions ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {showAdvancedOptions && (
+              <div className={`border-t ${theme.borderInput} p-3 space-y-3 animate-fade-in-up max-h-96 overflow-y-auto rounded-b`}>
+                
+                {/* Supplier Statement: Include Supporting Invoices */}
+                {activeCategory === 'SUPPLIER' && (
+                  <div className="flex items-start gap-3">
+                    <input 
+                      type="checkbox" 
+                      id="linkDocs"
+                      checked={includeSupportDocs}
+                      onChange={(e) => setIncludeSupportDocs(e.target.checked)}
+                      className="mt-1 accent-[#FF5A02]" 
+                    />
+                    <div className="flex-1">
+                      <label htmlFor="linkDocs" className={`text-sm font-bold ${theme.textMain} block cursor-pointer`}>Include Supporting Invoices</label>
+                      <p className={`text-[10px] ${theme.textMuted} mt-1`}>Generates individual PDF invoices for every line item, zipped together.</p>
+                      
+                      {includeSupportDocs && (
+                        <div className="mt-3 flex items-center gap-2">
+                          <label htmlFor="invoiceCount" className={`text-xs ${theme.textMuted}`}>Invoices per statement:</label>
+                          <input 
+                            type="number"
+                            id="invoiceCount"
+                            value={supplierStatementInvoiceCount}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value) || 3;
+                              setSupplierStatementInvoiceCount(Math.max(3, Math.min(10, val)));
+                            }}
+                            min="3"
+                            max="10"
+                            className={`w-16 ${theme.bgInput} ${theme.borderInput} border rounded-md px-2 py-1 text-xs ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
+                          />
+                          <span className={`text-[10px] ${theme.textMuted}`}>(3-10)</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Bank Statement: Generate Supporting Receipts */}
+                {activeCategory === 'BANK' && (
+                  <div className="space-y-3">
+                    {/* Transaction Count */}
+                    <div className="flex items-center gap-2">
+                      <label htmlFor="transactionCount" className={`text-xs ${theme.textMuted}`}>Transactions per statement:</label>
+                      <input 
+                        type="number"
+                        id="transactionCount"
+                        value={bankTransactionCount}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value) || 3;
+                          setBankTransactionCount(Math.max(3, Math.min(10, val)));
+                        }}
+                        min="3"
+                        max="10"
+                        className={`w-16 ${theme.bgInput} ${theme.borderInput} border rounded-md px-2 py-1 text-xs ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
+                      />
+                      <span className={`text-[10px] ${theme.textMuted}`}>(3-10)</span>
+                    </div>
+
+                    {/* Generate Supporting Receipts */}
+                    <div className="flex items-start gap-3">
+                      <input 
+                        type="checkbox" 
+                        id="bankReceipts"
+                        checked={includeBankReceipts}
+                        onChange={(e) => setIncludeBankReceipts(e.target.checked)}
+                        className="mt-1 accent-[#FF5A02]" 
+                      />
+                      <div className="flex-1">
+                        <label htmlFor="bankReceipts" className={`text-sm font-bold ${theme.textMain} block cursor-pointer`}>Generate Supporting Receipts</label>
+                        <p className={`text-[10px] ${theme.textMuted} mt-1`}>Generates receipts for all expense transactions (debits) from the statement for reconciliation.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Costs Invoice: Include Purchase Order Number */}
+                {activeCategory === 'COSTS' && docType.includes('Invoice') && !docType.includes('Credit') && (
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                      <input 
+                        type="checkbox" 
+                        id="includePO"
+                        checked={includePO}
+                        onChange={(e) => setIncludePO(e.target.checked)}
+                        className="mt-1 accent-[#FF5A02]" 
+                      />
+                      <div className="flex-1">
+                        <label htmlFor="includePO" className={`text-sm font-bold ${theme.textMain} block cursor-pointer`}>Include Purchase Order Number</label>
+                      </div>
+                    </div>
+
+                    {/* PO Number Input Field (appears when PO is enabled and in Manual mode) */}
+                    {mode === 'MANUAL' && includePO && (
+                      <div className="ml-7 space-y-3 animate-fade-in-up">
+                        <div className="space-y-1">
+                          <label className={`text-xs ${theme.textMuted}`}>Purchase Order Number</label>
+                          <input 
+                            type="text" 
+                            value={manualData.poNumber}
+                            onChange={(e) => setManualData({...manualData, poNumber: e.target.value})}
+                            maxLength={50}
+                            className={`w-full ${theme.bgInput} ${theme.borderInput} border rounded-md p-2.5 text-sm ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
+                            placeholder="PO-2024-001"
+                          />
+                        </div>
+
+                        {/* Generate Matching PO checkbox */}
+                        <div className="flex items-start gap-3">
+                          <input 
+                            type="checkbox" 
+                            id="generatePO"
+                            checked={generatePO}
+                            onChange={(e) => setGeneratePO(e.target.checked)}
+                            className="mt-1 accent-[#FF5A02]" 
+                          />
+                          <div className="flex-1">
+                            <label htmlFor="generatePO" className={`text-sm font-bold ${theme.textMain} block cursor-pointer`}>Generate Matching Purchase Order</label>
+                            <p className={`text-[10px] ${theme.textMuted} mt-1`}>Creates a PO document matching the invoice details. Preview it using the tabs above.</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Costs & Sales: Include Payment Method */}
+                {((activeCategory === 'COSTS' && docType !== 'ATM Withdrawal') || activeCategory === 'SALES') && (
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                      <input 
+                        type="checkbox" 
+                        id="includePaymentMethod"
+                        checked={includePaymentMethod}
+                        onChange={(e) => setIncludePaymentMethod(e.target.checked)}
+                        className="mt-1 accent-[#FF5A02]" 
+                      />
+                      <div className="flex-1">
+                        <label htmlFor="includePaymentMethod" className={`text-sm font-bold ${theme.textMain} block cursor-pointer`}>Include Payment Method</label>
+                      </div>
+                    </div>
+
+                    {/* Payment Method Input Field (appears when enabled and in Manual mode) */}
+                    {mode === 'MANUAL' && includePaymentMethod && (
+                      <div className="ml-7 animate-fade-in-up">
+                        <div className="space-y-1">
+                          <label className={`text-xs ${theme.textMuted}`}>Payment Method (Last 4 Digits)</label>
+                          <input 
+                            type="text" 
+                            value={manualData.paymentMethod}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                              setManualData({...manualData, paymentMethod: val});
+                            }}
+                            maxLength={4}
+                            className={`w-full ${theme.bgInput} ${theme.borderInput} border rounded-md p-2.5 text-sm ${theme.textInput} focus:outline-none focus:${theme.borderHighlight}`}
+                            placeholder="1234"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
               </div>
             )}
           </div>
@@ -1967,6 +2272,17 @@ export default function App() {
                     <span>Success!</span>
                   ) : (() => {
                     if (mode === 'MANUAL') {
+                      // Manual mode: Show bank statement receipts count if applicable
+                      if (activeCategory === 'BANK' && includeBankReceipts) {
+                        const debitCount = previewData.lines ? previewData.lines.filter(txn => txn.debit && parseFloat(txn.debit) > 0).length : 0;
+                        const receiptText = debitCount === 1 ? 'Receipt' : 'Receipts';
+                        return (
+                          <div className="flex flex-col items-center leading-tight">
+                            <span className="font-bold">Generate {1 + debitCount} PDFs</span>
+                            <span className="text-xs font-normal mt-0.5">1 Statement + {debitCount} {receiptText}</span>
+                          </div>
+                        );
+                      }
                       // Manual mode: Show supplier statement count if applicable
                       if (activeCategory === 'SUPPLIER' && includeSupportDocs) {
                         const totalFiles = 1 + supplierStatementInvoiceCount;
@@ -1984,6 +2300,18 @@ export default function App() {
                       }
                       return <span>Generate PDF</span>;
                     } else {
+                      // Auto mode: Show bank statement receipts count if applicable
+                      if (activeCategory === 'BANK' && includeBankReceipts) {
+                        const avgDebits = 4; // Average debits per statement (estimated)
+                        const totalFiles = quantity + (quantity * avgDebits);
+                        const stmtText = quantity === 1 ? 'Statement' : 'Statements';
+                        return (
+                          <div className="flex flex-col items-center leading-tight">
+                            <span className="font-bold">Generate ~{totalFiles} PDFs</span>
+                            <span className="text-xs font-normal mt-0.5">{quantity} {stmtText} + Receipts</span>
+                          </div>
+                        );
+                      }
                       // Auto mode: Show supplier statement count if applicable
                       if (activeCategory === 'SUPPLIER' && includeSupportDocs) {
                         const totalFiles = quantity + (quantity * supplierStatementInvoiceCount);
