@@ -15,7 +15,8 @@ import {
   Briefcase,
   Sun,
   Moon,
-  ChevronDown
+  ChevronDown,
+  Brain
 } from 'lucide-react';
 
 /**
@@ -239,6 +240,140 @@ const formatCurrency = (amount, currency) => {
 
 const getRandomElement = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
+// --- Smart Line Items Generation (AI-Powered) ---
+
+/**
+ * Generate contextual line items based on supplier name and total amount.
+ * 
+ * TODO: GEMINI INTEGRATION
+ * When you have your Gemini API key, replace the mock logic below with:
+ * 
+ * const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
+ * const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+ * 
+ * const prompt = `Generate 3-5 realistic line items for a ${supplier} invoice totaling approximately ${total}.
+ * Return ONLY valid JSON array: [{ desc: string, qty: number, amount: number }]
+ * Amounts should be realistic and sum close to ${total}.`;
+ * 
+ * const result = await model.generateContent(prompt);
+ * const text = result.response.text();
+ * const items = JSON.parse(text);
+ * return items.map((item, idx) => ({ ...item, id: idx + 1, amount: item.amount.toFixed(2) }));
+ */
+async function generateSmartLineItems(supplier, total) {
+  // Simulate AI processing delay
+  await new Promise(resolve => setTimeout(resolve, 1500));
+  
+  // MOCK LOGIC - Replace this with Gemini when ready
+  const supplierLower = supplier.toLowerCase();
+  const targetTotal = parseFloat(total) || 100;
+  
+  // Contextual item templates based on supplier type
+  const templates = {
+    // Coffee shops
+    coffee: [
+      { desc: 'Grande Caramel Latte', basePrice: 4.75 },
+      { desc: 'Venti Iced Coffee', basePrice: 4.25 },
+      { desc: 'Chocolate Chip Cookie', basePrice: 2.50 },
+      { desc: 'Banana Bread', basePrice: 3.75 },
+      { desc: 'Espresso Shot', basePrice: 2.00 }
+    ],
+    // Hardware/Home improvement
+    hardware: [
+      { desc: '2x4 Lumber (8ft)', basePrice: 7.00 },
+      { desc: 'Interior Paint (Gallon)', basePrice: 29.99 },
+      { desc: 'Deck Screws (Box)', basePrice: 11.99 },
+      { desc: 'Work Gloves', basePrice: 12.99 },
+      { desc: 'Safety Glasses', basePrice: 8.99 }
+    ],
+    // Restaurants
+    restaurant: [
+      { desc: 'Team Lunch - Assorted Sandwiches', basePrice: 12.00 },
+      { desc: 'Soft Drinks (12-pack)', basePrice: 8.99 },
+      { desc: 'Caesar Salad (Large)', basePrice: 9.50 },
+      { desc: 'Delivery Fee', basePrice: 5.00 }
+    ],
+    // Office supplies
+    office: [
+      { desc: 'Printer Paper (Case)', basePrice: 42.00 },
+      { desc: 'Blue Ink Pens (Box of 12)', basePrice: 8.99 },
+      { desc: 'Desk Organizer Set', basePrice: 24.99 },
+      { desc: 'Sticky Notes (Variety Pack)', basePrice: 12.50 }
+    ],
+    // Tech/Electronics
+    tech: [
+      { desc: 'Wireless Mouse', basePrice: 24.99 },
+      { desc: 'USB-C Cable (6ft)', basePrice: 8.99 },
+      { desc: 'Laptop Stand', basePrice: 34.99 },
+      { desc: 'Webcam HD 1080p', basePrice: 49.99 }
+    ],
+    // Groceries
+    grocery: [
+      { desc: 'Organic Produce Box', basePrice: 28.00 },
+      { desc: 'Free-Range Eggs (Dozen)', basePrice: 6.99 },
+      { desc: 'Whole Grain Bread', basePrice: 4.50 },
+      { desc: 'Almond Milk (Half Gallon)', basePrice: 4.99 }
+    ],
+    // Default/Professional services
+    default: [
+      { desc: 'Professional Services', basePrice: 150.00 },
+      { desc: 'Consultation Fee', basePrice: 100.00 },
+      { desc: 'Materials & Supplies', basePrice: 45.00 },
+      { desc: 'Administrative Fee', basePrice: 25.00 }
+    ]
+  };
+  
+  // Determine supplier type from name
+  let selectedTemplate = templates.default;
+  if (supplierLower.includes('coffee') || supplierLower.includes('starbucks') || supplierLower.includes('costa')) {
+    selectedTemplate = templates.coffee;
+  } else if (supplierLower.includes('depot') || supplierLower.includes('hardware') || supplierLower.includes('builders')) {
+    selectedTemplate = templates.hardware;
+  } else if (supplierLower.includes('restaurant') || supplierLower.includes('pizza') || supplierLower.includes('food')) {
+    selectedTemplate = templates.restaurant;
+  } else if (supplierLower.includes('office') || supplierLower.includes('staples')) {
+    selectedTemplate = templates.office;
+  } else if (supplierLower.includes('amazon') || supplierLower.includes('tech') || supplierLower.includes('electronics')) {
+    selectedTemplate = templates.tech;
+  } else if (supplierLower.includes('market') || supplierLower.includes('foods') || supplierLower.includes('grocery')) {
+    selectedTemplate = templates.grocery;
+  }
+  
+  // Generate 3-5 items
+  const itemCount = Math.floor(Math.random() * 3) + 3; // 3-5 items
+  const items = [];
+  const usedIndices = new Set();
+  
+  // Select random items from template
+  while (items.length < itemCount && usedIndices.size < selectedTemplate.length) {
+    const idx = Math.floor(Math.random() * selectedTemplate.length);
+    if (!usedIndices.has(idx)) {
+      usedIndices.add(idx);
+      const template = selectedTemplate[idx];
+      const qty = Math.floor(Math.random() * 3) + 1; // 1-3 quantity
+      items.push({
+        desc: template.desc,
+        qty: qty,
+        basePrice: template.basePrice
+      });
+    }
+  }
+  
+  // Adjust amounts to match target total
+  let currentTotal = items.reduce((sum, item) => sum + (item.basePrice * item.qty), 0);
+  const scaleFactor = targetTotal / currentTotal;
+  
+  return items.map((item, idx) => {
+    const amount = (item.basePrice * item.qty * scaleFactor).toFixed(2);
+    return {
+      id: idx + 1,
+      desc: item.desc,
+      qty: item.qty,
+      amount: amount
+    };
+  });
+}
+
 // --- Main Component ---
 
 export default function App() {
@@ -279,6 +414,12 @@ export default function App() {
   const [generatePO, setGeneratePO] = useState(false); // NEW: Generate matching PO document
   const [previewMode, setPreviewMode] = useState('invoice'); // 'invoice' or 'po'
   const [supplierStatementInvoiceCount, setSupplierStatementInvoiceCount] = useState(5); // NEW: Number of invoices in supplier statement
+  const [showLineItems, setShowLineItems] = useState(false); // NEW: Show/hide line items section
+  const [isGeneratingItems, setIsGeneratingItems] = useState(false); // NEW: AI generation in progress
+  const [lineItems, setLineItems] = useState([ // NEW: Smart line items
+    { id: 1, desc: "General Goods", qty: 1, amount: "84.00" },
+    { id: 2, desc: "Service Fee", qty: 1, amount: "36.00" }
+  ]);
   
   const [manualData, setManualData] = useState({
     supplier: "Joe's Coffee",
@@ -378,6 +519,26 @@ export default function App() {
     accentBg: 'bg-[#FFF0E6]',
     navHoverBg: 'hover:bg-gray-100', 
     navHoverBorder: 'hover:border-gray-400' 
+  };
+
+  // --- Smart Line Items Handler ---
+  const handleGenerateLineItems = async () => {
+    if (isGeneratingItems) return;
+    
+    setIsGeneratingItems(true);
+    try {
+      const items = await generateSmartLineItems(manualData.supplier, manualData.total);
+      setLineItems(items);
+      
+      // Update total to match generated items
+      const newTotal = items.reduce((sum, item) => sum + parseFloat(item.amount), 0).toFixed(2);
+      setManualData(prev => ({ ...prev, total: newTotal }));
+    } catch (error) {
+      console.error('Error generating line items:', error);
+      alert('Failed to generate line items. Please try again.');
+    } finally {
+      setIsGeneratingItems(false);
+    }
   };
 
   useEffect(() => {
@@ -636,6 +797,16 @@ export default function App() {
       }));
     }
   }, [includePaymentMethod, mode]);
+
+  // NEW: Update total when line items change
+  useEffect(() => {
+    if (mode === 'MANUAL' && lineItems.length > 0 && showLineItems) {
+      const newTotal = lineItems.reduce((sum, item) => sum + parseFloat(item.amount), 0).toFixed(2);
+      if (newTotal !== manualData.total) {
+        setManualData(prev => ({ ...prev, total: newTotal }));
+      }
+    }
+  }, [lineItems, mode, showLineItems]);
 
   useEffect(() => {
     const iconColor = isDarkMode ? '#121212' : '#ffffff';
@@ -2060,6 +2231,62 @@ export default function App() {
               </div>
             )}
           </div>
+
+          {/* Smart Line Items Section (MANUAL mode only, for invoices) */}
+          {mode === 'MANUAL' && (activeCategory === 'COSTS' || activeCategory === 'SALES') && !docType.includes('Receipt') && !docType.includes('ATM') && (
+            <div className={`${theme.bgCard} rounded border ${theme.borderInput}`}>
+              <button
+                onClick={() => setShowLineItems(!showLineItems)}
+                className={`w-full p-3 flex items-center justify-between ${theme.textMain} hover:${theme.bgInput} transition-colors ${showLineItems ? 'rounded-t' : 'rounded'}`}
+              >
+                <div className="flex items-center gap-2">
+                  <FileText size={16} className={theme.accentText} />
+                  <span className="text-sm font-bold">Line Items ({lineItems.length})</span>
+                </div>
+                <ChevronDown 
+                  size={16} 
+                  className={`transition-transform ${showLineItems ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              {showLineItems && (
+                <div className={`border-t ${theme.borderInput} p-3 space-y-3 animate-fade-in-up`}>
+                  
+                  {/* Generate Button */}
+                  <button
+                    onClick={handleGenerateLineItems}
+                    disabled={isGeneratingItems}
+                    className={`w-full ${theme.bgInput} border ${theme.borderInput} hover:${theme.borderHighlight} hover:${theme.accentText} rounded-md py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${theme.textMain}`}
+                  >
+                    <Brain size={16} className={isGeneratingItems ? 'animate-pulse' : ''} />
+                    <span>{isGeneratingItems ? 'Generating...' : 'Generate Smart Items'}</span>
+                  </button>
+
+                  {/* Line Items List */}
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {lineItems.map(item => (
+                      <div key={item.id} className={`${theme.bgInput} rounded p-2.5 text-xs border ${theme.borderInput}`}>
+                        <div className="flex justify-between items-start mb-1">
+                          <span className={`font-medium ${theme.textMain} flex-1 pr-2`}>{item.desc}</span>
+                          <span className={theme.textMuted}>{REGIONS[region].currency}{item.amount}</span>
+                        </div>
+                        <div className={`${theme.textMuted} text-[10px]`}>Qty: {item.qty}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Add Item Manually (placeholder) */}
+                  <button 
+                    onClick={() => alert('Manual line item editing will be added in a future update!')}
+                    className={`w-full text-xs ${theme.textMuted} hover:${theme.textMain} py-2 border border-dashed ${theme.borderInput} rounded hover:${theme.borderHighlight} transition-colors`}
+                  >
+                    + Add Item Manually
+                  </button>
+
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Advanced Options Expandable Section */}
           <div className={`${theme.bgCard} rounded border ${theme.borderInput}`}>
