@@ -16,8 +16,14 @@ import {
   Sun,
   Moon,
   ChevronDown,
-  Brain
+  Brain,
+  Edit,
+  Trash2,
+  Plus,
+  X,
+  Check
 } from 'lucide-react';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 /**
  * MOCKUMENTS v2.3 - WITH TEMPLATE SYSTEM
@@ -261,117 +267,66 @@ const getRandomElement = (arr) => arr[Math.floor(Math.random() * arr.length)];
  * return items.map((item, idx) => ({ ...item, id: idx + 1, amount: item.amount.toFixed(2) }));
  */
 async function generateSmartLineItems(supplier, total) {
-  // Simulate AI processing delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
+  // Initialize Gemini AI
+  const genAI = new GoogleGenerativeAI(process.env.REACT_APP_GEMINI_API_KEY);
+  const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
   
-  // MOCK LOGIC - Replace this with Gemini when ready
-  const supplierLower = supplier.toLowerCase();
-  const targetTotal = parseFloat(total) || 100;
-  
-  // Contextual item templates based on supplier type
-  const templates = {
-    // Coffee shops
-    coffee: [
-      { desc: 'Grande Caramel Latte', basePrice: 4.75 },
-      { desc: 'Venti Iced Coffee', basePrice: 4.25 },
-      { desc: 'Chocolate Chip Cookie', basePrice: 2.50 },
-      { desc: 'Banana Bread', basePrice: 3.75 },
-      { desc: 'Espresso Shot', basePrice: 2.00 }
-    ],
-    // Hardware/Home improvement
-    hardware: [
-      { desc: '2x4 Lumber (8ft)', basePrice: 7.00 },
-      { desc: 'Interior Paint (Gallon)', basePrice: 29.99 },
-      { desc: 'Deck Screws (Box)', basePrice: 11.99 },
-      { desc: 'Work Gloves', basePrice: 12.99 },
-      { desc: 'Safety Glasses', basePrice: 8.99 }
-    ],
-    // Restaurants
-    restaurant: [
-      { desc: 'Team Lunch - Assorted Sandwiches', basePrice: 12.00 },
-      { desc: 'Soft Drinks (12-pack)', basePrice: 8.99 },
-      { desc: 'Caesar Salad (Large)', basePrice: 9.50 },
-      { desc: 'Delivery Fee', basePrice: 5.00 }
-    ],
-    // Office supplies
-    office: [
-      { desc: 'Printer Paper (Case)', basePrice: 42.00 },
-      { desc: 'Blue Ink Pens (Box of 12)', basePrice: 8.99 },
-      { desc: 'Desk Organizer Set', basePrice: 24.99 },
-      { desc: 'Sticky Notes (Variety Pack)', basePrice: 12.50 }
-    ],
-    // Tech/Electronics
-    tech: [
-      { desc: 'Wireless Mouse', basePrice: 24.99 },
-      { desc: 'USB-C Cable (6ft)', basePrice: 8.99 },
-      { desc: 'Laptop Stand', basePrice: 34.99 },
-      { desc: 'Webcam HD 1080p', basePrice: 49.99 }
-    ],
-    // Groceries
-    grocery: [
-      { desc: 'Organic Produce Box', basePrice: 28.00 },
-      { desc: 'Free-Range Eggs (Dozen)', basePrice: 6.99 },
-      { desc: 'Whole Grain Bread', basePrice: 4.50 },
-      { desc: 'Almond Milk (Half Gallon)', basePrice: 4.99 }
-    ],
-    // Default/Professional services
-    default: [
-      { desc: 'Professional Services', basePrice: 150.00 },
-      { desc: 'Consultation Fee', basePrice: 100.00 },
-      { desc: 'Materials & Supplies', basePrice: 45.00 },
-      { desc: 'Administrative Fee', basePrice: 25.00 }
-    ]
-  };
-  
-  // Determine supplier type from name
-  let selectedTemplate = templates.default;
-  if (supplierLower.includes('coffee') || supplierLower.includes('starbucks') || supplierLower.includes('costa')) {
-    selectedTemplate = templates.coffee;
-  } else if (supplierLower.includes('depot') || supplierLower.includes('hardware') || supplierLower.includes('builders')) {
-    selectedTemplate = templates.hardware;
-  } else if (supplierLower.includes('restaurant') || supplierLower.includes('pizza') || supplierLower.includes('food')) {
-    selectedTemplate = templates.restaurant;
-  } else if (supplierLower.includes('office') || supplierLower.includes('staples')) {
-    selectedTemplate = templates.office;
-  } else if (supplierLower.includes('amazon') || supplierLower.includes('tech') || supplierLower.includes('electronics')) {
-    selectedTemplate = templates.tech;
-  } else if (supplierLower.includes('market') || supplierLower.includes('foods') || supplierLower.includes('grocery')) {
-    selectedTemplate = templates.grocery;
-  }
-  
-  // Generate 3-5 items
-  const itemCount = Math.floor(Math.random() * 3) + 3; // 3-5 items
-  const items = [];
-  const usedIndices = new Set();
-  
-  // Select random items from template
-  while (items.length < itemCount && usedIndices.size < selectedTemplate.length) {
-    const idx = Math.floor(Math.random() * selectedTemplate.length);
-    if (!usedIndices.has(idx)) {
-      usedIndices.add(idx);
-      const template = selectedTemplate[idx];
-      const qty = Math.floor(Math.random() * 3) + 1; // 1-3 quantity
-      items.push({
-        desc: template.desc,
-        qty: qty,
-        basePrice: template.basePrice
-      });
+  // Create the prompt
+  const prompt = `Generate 3-5 realistic line items for a ${supplier} invoice totaling approximately ${total}.
+
+Context:
+- Supplier/Business: ${supplier}
+- Target Total Amount: ${total}
+
+Return ONLY a valid JSON array with this exact format (no markdown, no code blocks, just raw JSON):
+[
+  { "desc": "Item description", "qty": 2, "amount": 25.50 },
+  { "desc": "Another item", "qty": 1, "amount": 15.00 }
+]
+
+Important rules:
+- Use realistic item names relevant to ${supplier} and their business type
+- Amounts should be realistic for that supplier
+- The sum of all amounts should be close to ${total} (within 10%)
+- Include 3-5 items only
+- Each amount should have 2 decimal places
+- Return ONLY the JSON array, nothing else`;
+
+  try {
+    // Call Gemini API
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    
+    // Clean any markdown formatting that might be present
+    const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    // Parse the JSON response
+    const items = JSON.parse(cleanText);
+    
+    // Validate and format the items
+    if (!Array.isArray(items) || items.length === 0) {
+      throw new Error('Invalid response format from AI');
     }
-  }
-  
-  // Adjust amounts to match target total
-  let currentTotal = items.reduce((sum, item) => sum + (item.basePrice * item.qty), 0);
-  const scaleFactor = targetTotal / currentTotal;
-  
-  return items.map((item, idx) => {
-    const amount = (item.basePrice * item.qty * scaleFactor).toFixed(2);
-    return {
+    
+    // Return formatted items with IDs
+    return items.map((item, idx) => ({
       id: idx + 1,
       desc: item.desc,
-      qty: item.qty,
-      amount: amount
-    };
-  });
+      qty: parseInt(item.qty) || 1,
+      amount: parseFloat(item.amount).toFixed(2)
+    }));
+    
+  } catch (error) {
+    console.error('Gemini API error:', error);
+    
+    // Fallback to basic items if AI fails
+    const fallbackTotal = parseFloat(total) || 100;
+    return [
+      { id: 1, desc: 'Professional Services', qty: 1, amount: (fallbackTotal * 0.6).toFixed(2) },
+      { id: 2, desc: 'Consultation Fee', qty: 1, amount: (fallbackTotal * 0.25).toFixed(2) },
+      { id: 3, desc: 'Materials & Supplies', qty: 1, amount: (fallbackTotal * 0.15).toFixed(2) }
+    ];
+  }
 }
 
 // --- Main Component ---
@@ -420,6 +375,9 @@ export default function App() {
     { id: 1, desc: "General Goods", qty: 1, amount: "84.00" },
     { id: 2, desc: "Service Fee", qty: 1, amount: "36.00" }
   ]);
+  const [showAddItemForm, setShowAddItemForm] = useState(false); // NEW: Show/hide add item form
+  const [editingItemId, setEditingItemId] = useState(null); // NEW: ID of item being edited
+  const [itemFormData, setItemFormData] = useState({ desc: '', qty: '1', amount: '' }); // NEW: Form data for add/edit
   
   const [manualData, setManualData] = useState({
     supplier: "Joe's Coffee",
@@ -539,6 +497,66 @@ export default function App() {
     } finally {
       setIsGeneratingItems(false);
     }
+  };
+
+  // --- Manual Line Item Handlers ---
+  const handleAddItem = () => {
+    if (!itemFormData.desc.trim() || !itemFormData.amount) {
+      alert('Please enter description and amount');
+      return;
+    }
+    
+    const newItem = {
+      id: Date.now(), // Simple unique ID
+      desc: itemFormData.desc.trim(),
+      qty: parseInt(itemFormData.qty) || 1,
+      amount: parseFloat(itemFormData.amount).toFixed(2)
+    };
+    
+    setLineItems(prev => [...prev, newItem]);
+    setItemFormData({ desc: '', qty: '1', amount: '' });
+    setShowAddItemForm(false);
+  };
+
+  const handleEditItem = (item) => {
+    setEditingItemId(item.id);
+    setItemFormData({ desc: item.desc, qty: item.qty.toString(), amount: item.amount });
+  };
+
+  const handleUpdateItem = () => {
+    if (!itemFormData.desc.trim() || !itemFormData.amount) {
+      alert('Please enter description and amount');
+      return;
+    }
+    
+    setLineItems(prev => prev.map(item => 
+      item.id === editingItemId 
+        ? { 
+            ...item, 
+            desc: itemFormData.desc.trim(), 
+            qty: parseInt(itemFormData.qty) || 1, 
+            amount: parseFloat(itemFormData.amount).toFixed(2) 
+          }
+        : item
+    ));
+    
+    setEditingItemId(null);
+    setItemFormData({ desc: '', qty: '1', amount: '' });
+  };
+
+  const handleDeleteItem = (id) => {
+    if (lineItems.length <= 1) {
+      alert('You must have at least one line item');
+      return;
+    }
+    
+    setLineItems(prev => prev.filter(item => item.id !== id));
+  };
+
+  const handleCancelEdit = () => {
+    setEditingItemId(null);
+    setShowAddItemForm(false);
+    setItemFormData({ desc: '', qty: '1', amount: '' });
   };
 
   useEffect(() => {
@@ -742,8 +760,24 @@ export default function App() {
       // Only update lines for receipts/invoices, not for bank/supplier statements
       const shouldUpdateLines = activeCategory !== 'BANK' && activeCategory !== 'SUPPLIER';
       
-      // Calculate line items from subtotal (before tax), not total
-      const subtotal = parseFloat(total) - parseFloat(tax);
+      // Use actual line items if they exist, otherwise use defaults
+      let linesToUse;
+      if (shouldUpdateLines && lineItems.length > 0) {
+        linesToUse = lineItems.map(item => ({
+          desc: item.desc,
+          qty: item.qty,
+          amount: item.amount
+        }));
+      } else if (shouldUpdateLines) {
+        // Fallback to default lines if no line items
+        const subtotal = parseFloat(total) - parseFloat(tax);
+        linesToUse = [
+          { desc: "General Goods", qty: 1, amount: (subtotal * 0.7).toFixed(2) },
+          { desc: "Service Fee", qty: 1, amount: (subtotal * 0.3).toFixed(2) }
+        ];
+      } else {
+        linesToUse = prev.lines;
+      }
       
       setPreviewData(prev => ({
         ...prev,
@@ -751,10 +785,7 @@ export default function App() {
         date: new Date(manualData.date),
         total: total,
         tax: tax,
-        lines: shouldUpdateLines ? [
-          { desc: "General Goods", qty: 1, amount: (subtotal * 0.7).toFixed(2) },
-          { desc: "Service Fee", qty: 1, amount: (subtotal * 0.3).toFixed(2) }
-        ] : prev.lines,
+        lines: linesToUse,
         meta: {
           ...prev.meta,
           customerName: customerName,
@@ -770,7 +801,7 @@ export default function App() {
         }
       }));
     }
-  }, [manualData, mode, includePO, includePaymentMethod, activeCategory, stableRandomSupplier, region]);
+  }, [manualData, mode, includePO, includePaymentMethod, activeCategory, stableRandomSupplier, region, lineItems]);
 
   // NEW: Handle PO checkbox changes in AUTO mode
   useEffect(() => {
@@ -1129,6 +1160,26 @@ export default function App() {
     else if (docType.includes('Vault') || activeCategory === 'VAULT') data = generateVaultData();
     else data = generateReceiptData(false);
 
+    // In MANUAL mode, preserve existing lineItems if they exist
+    if (mode === 'MANUAL' && lineItems.length > 0 && (activeCategory === 'COSTS' || activeCategory === 'SALES') && !docType.includes('ATM')) {
+      data.lines = lineItems.map(item => ({
+        desc: item.desc,
+        qty: item.qty,
+        amount: item.amount
+      }));
+      
+      // Recalculate total from line items
+      const itemsTotal = lineItems.reduce((sum, item) => sum + parseFloat(item.amount), 0);
+      data.total = itemsTotal.toFixed(2);
+      
+      // Recalculate tax if auto-calc is on
+      if (manualData.autoCalcTax) {
+        const rate = REGIONS[region].taxRate;
+        const totalVal = parseFloat(data.total);
+        data.tax = (totalVal - (totalVal / (1 + rate))).toFixed(2);
+      }
+    }
+
     setPreviewData(data);
   };
 
@@ -1387,27 +1438,42 @@ export default function App() {
          </div>
 
          <div className={`${t.lineSpacing} mt-4 mb-6 font-medium`}>
-           {previewData.lines.map((l, i) => (
-             <div key={i} className="flex justify-between">
-               <span>{l.desc}</span>
-               <span>{formatCurrency(l.amount, REGIONS[region].currency)}</span>
-             </div>
-           ))}
+           {previewData.lines.map((l, i) => {
+             const qty = l.qty || 1;
+             const showQty = qty > 1;
+             
+             return (
+               <div key={i} className="flex justify-between">
+                 <span>
+                   {l.desc}
+                   {showQty && <span className="text-gray-500 ml-1">x{qty}</span>}
+                 </span>
+                 <span>{formatCurrency(l.amount, REGIONS[region].currency)}</span>
+               </div>
+             );
+           })}
          </div>
 
          <div className={`${t.borderStyle} border-t-2 border-gray-800 pt-2 space-y-1 ${t.totalWeight}`}>
-           <div className="flex justify-between">
-             <span>Subtotal</span>
-             <span>{formatCurrency(parseFloat(previewData.total) - parseFloat(previewData.tax), REGIONS[region].currency)}</span>
-           </div>
-           <div className="flex justify-between">
-             <span>{REGIONS[region].taxLabel}</span>
-             <span>{formatCurrency(previewData.tax, REGIONS[region].currency)}</span>
-           </div>
-           <div className={`flex justify-between ${t.totalSize} ${t.totalWeight} mt-2`}>
-             <span>TOTAL</span>
-             <span>{formatCurrency(previewData.total, REGIONS[region].currency)}</span>
-           </div>
+           {(() => {
+             const subtotal = previewData.lines.reduce((sum, line) => sum + parseFloat(line.amount), 0);
+             return (
+               <>
+                 <div className="flex justify-between">
+                   <span>Subtotal</span>
+                   <span>{formatCurrency(subtotal.toFixed(2), REGIONS[region].currency)}</span>
+                 </div>
+                 <div className="flex justify-between">
+                   <span>{REGIONS[region].taxLabel}</span>
+                   <span>{formatCurrency(previewData.tax, REGIONS[region].currency)}</span>
+                 </div>
+                 <div className={`flex justify-between ${t.totalSize} ${t.totalWeight} mt-2`}>
+                   <span>TOTAL</span>
+                   <span>{formatCurrency(previewData.total, REGIONS[region].currency)}</span>
+                 </div>
+               </>
+             );
+           })()}
          </div>
 
          {/* Payment Method */}
@@ -1580,36 +1646,52 @@ export default function App() {
       <table className="w-full text-sm mb-8 relative z-10">
         <thead className="border-b-2 border-gray-800">
           <tr>
-            <th className="text-left py-2 w-1/2">Description</th>
-            <th className="text-center py-2">Qty</th>
-            <th className="text-right py-2">Amount</th>
+            <th className="text-left py-2 w-[40%]">Description</th>
+            <th className="text-center py-2 w-[15%]">Qty</th>
+            <th className="text-right py-2 w-[20%]">Unit Price</th>
+            <th className="text-right py-2 w-[25%]">Amount</th>
           </tr>
         </thead>
         <tbody>
-          {previewData.lines.map((l, i) => (
-            <tr key={i} className="border-b border-gray-200">
-              <td className="py-3">{l.desc}</td>
-              <td className="text-center py-3">{l.qty || 1}</td>
-              <td className="text-right py-3">{formatCurrency(l.amount, REGIONS[region].currency)}</td>
-            </tr>
-          ))}
+          {previewData.lines.map((l, i) => {
+            const qty = l.qty || 1;
+            const amount = parseFloat(l.amount);
+            const unitPrice = (amount / qty).toFixed(2);
+            
+            return (
+              <tr key={i} className="border-b border-gray-200">
+                <td className="py-3">{l.desc}</td>
+                <td className="text-center py-3">{qty}</td>
+                <td className="text-right py-3">{formatCurrency(unitPrice, REGIONS[region].currency)}</td>
+                <td className="text-right py-3">{formatCurrency(amount, REGIONS[region].currency)}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
 
       <div className="flex justify-end relative z-10">
         <div className="w-1/2 space-y-2">
-           <div className="flex justify-between text-sm">
-             <span>Subtotal</span>
-             <span>{formatCurrency(parseFloat(previewData.total) - parseFloat(previewData.tax), REGIONS[region].currency)}</span>
-           </div>
-           <div className="flex justify-between text-sm">
-             <span>{REGIONS[region].taxLabel} ({REGIONS[region].taxRate*100}%)</span>
-             <span>{formatCurrency(previewData.tax, REGIONS[region].currency)}</span>
-           </div>
-           <div className="flex justify-between text-xl font-bold border-t border-gray-800 pt-2 mt-2">
-             <span>Total</span>
-             <span>{formatCurrency(previewData.total, REGIONS[region].currency)}</span>
-           </div>
+           {/* Calculate subtotal from line items */}
+           {(() => {
+             const subtotal = previewData.lines.reduce((sum, line) => sum + parseFloat(line.amount), 0);
+             return (
+               <>
+                 <div className="flex justify-between text-sm">
+                   <span>Subtotal</span>
+                   <span>{formatCurrency(subtotal.toFixed(2), REGIONS[region].currency)}</span>
+                 </div>
+                 <div className="flex justify-between text-sm">
+                   <span>{REGIONS[region].taxLabel} ({REGIONS[region].taxRate*100}%)</span>
+                   <span>{formatCurrency(previewData.tax, REGIONS[region].currency)}</span>
+                 </div>
+                 <div className="flex justify-between text-xl font-bold border-t border-gray-800 pt-2 mt-2">
+                   <span>Total</span>
+                   <span>{formatCurrency(previewData.total, REGIONS[region].currency)}</span>
+                 </div>
+               </>
+             );
+           })()}
         </div>
       </div>
 
@@ -2232,8 +2314,8 @@ export default function App() {
             )}
           </div>
 
-          {/* Smart Line Items Section (MANUAL mode only, for invoices) */}
-          {mode === 'MANUAL' && (activeCategory === 'COSTS' || activeCategory === 'SALES') && !docType.includes('Receipt') && !docType.includes('ATM') && (
+          {/* Smart Line Items Section (MANUAL mode, for invoices/receipts/credit notes) */}
+          {mode === 'MANUAL' && (activeCategory === 'COSTS' || activeCategory === 'SALES') && !docType.includes('ATM') && (
             <div className={`${theme.bgCard} rounded border ${theme.borderInput}`}>
               <button
                 onClick={() => setShowLineItems(!showLineItems)}
@@ -2263,25 +2345,137 @@ export default function App() {
                   </button>
 
                   {/* Line Items List */}
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                  <div className="space-y-2 max-h-80 overflow-y-auto">
                     {lineItems.map(item => (
-                      <div key={item.id} className={`${theme.bgInput} rounded p-2.5 text-xs border ${theme.borderInput}`}>
-                        <div className="flex justify-between items-start mb-1">
-                          <span className={`font-medium ${theme.textMain} flex-1 pr-2`}>{item.desc}</span>
-                          <span className={theme.textMuted}>{REGIONS[region].currency}{item.amount}</span>
+                      editingItemId === item.id ? (
+                        // Edit Form (inline)
+                        <div key={item.id} className={`${theme.bgInput} rounded p-2.5 text-xs border ${theme.borderHighlight} space-y-2`}>
+                          <input
+                            type="text"
+                            value={itemFormData.desc}
+                            onChange={(e) => setItemFormData({...itemFormData, desc: e.target.value})}
+                            placeholder="Description"
+                            className={`w-full ${theme.bgCard} ${theme.borderInput} border rounded px-2 py-1.5 text-xs ${theme.textInput}`}
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="number"
+                              value={itemFormData.qty}
+                              onChange={(e) => setItemFormData({...itemFormData, qty: e.target.value})}
+                              min="1"
+                              placeholder="Qty"
+                              className={`w-full ${theme.bgCard} ${theme.borderInput} border rounded px-2 py-1.5 text-xs ${theme.textInput}`}
+                            />
+                            <input
+                              type="number"
+                              value={itemFormData.amount}
+                              onChange={(e) => setItemFormData({...itemFormData, amount: e.target.value})}
+                              min="0"
+                              step="0.01"
+                              placeholder="Amount"
+                              className={`w-full ${theme.bgCard} ${theme.borderInput} border rounded px-2 py-1.5 text-xs ${theme.textInput}`}
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={handleUpdateItem}
+                              className={`flex-1 ${theme.bgCard} border ${theme.borderInput} hover:${theme.borderHighlight} hover:${theme.accentText} rounded px-2 py-1.5 text-xs font-medium flex items-center justify-center gap-1 transition-colors`}
+                            >
+                              <Check size={12} /> Save
+                            </button>
+                            <button
+                              onClick={handleCancelEdit}
+                              className={`flex-1 ${theme.bgCard} border ${theme.borderInput} hover:border-red-500 hover:text-red-500 rounded px-2 py-1.5 text-xs font-medium flex items-center justify-center gap-1 transition-colors`}
+                            >
+                              <X size={12} /> Cancel
+                            </button>
+                          </div>
                         </div>
-                        <div className={`${theme.textMuted} text-[10px]`}>Qty: {item.qty}</div>
-                      </div>
+                      ) : (
+                        // Display Mode
+                        <div key={item.id} className={`${theme.bgInput} rounded p-2.5 text-xs border ${theme.borderInput} group hover:${theme.borderHighlight} transition-colors`}>
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="flex-1">
+                              <div className="flex justify-between items-start mb-1">
+                                <span className={`font-medium ${theme.textMain} flex-1 pr-2`}>{item.desc}</span>
+                                <span className={theme.textMuted}>{REGIONS[region].currency}{item.amount}</span>
+                              </div>
+                              <div className={`${theme.textMuted} text-[10px]`}>Qty: {item.qty}</div>
+                            </div>
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => handleEditItem(item)}
+                                className={`p-1 hover:${theme.accentText} transition-colors`}
+                                title="Edit"
+                              >
+                                <Edit size={12} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteItem(item.id)}
+                                className="p-1 hover:text-red-500 transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )
                     ))}
                   </div>
 
-                  {/* Add Item Manually (placeholder) */}
-                  <button 
-                    onClick={() => alert('Manual line item editing will be added in a future update!')}
-                    className={`w-full text-xs ${theme.textMuted} hover:${theme.textMain} py-2 border border-dashed ${theme.borderInput} rounded hover:${theme.borderHighlight} transition-colors`}
-                  >
-                    + Add Item Manually
-                  </button>
+                  {/* Add Item Form or Button */}
+                  {showAddItemForm ? (
+                    <div className={`${theme.bgInput} rounded p-2.5 text-xs border ${theme.borderHighlight} space-y-2 animate-fade-in-up`}>
+                      <input
+                        type="text"
+                        value={itemFormData.desc}
+                        onChange={(e) => setItemFormData({...itemFormData, desc: e.target.value})}
+                        placeholder="Item description"
+                        className={`w-full ${theme.bgCard} ${theme.borderInput} border rounded px-2 py-1.5 text-xs ${theme.textInput}`}
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="number"
+                          value={itemFormData.qty}
+                          onChange={(e) => setItemFormData({...itemFormData, qty: e.target.value})}
+                          min="1"
+                          placeholder="Quantity"
+                          className={`w-full ${theme.bgCard} ${theme.borderInput} border rounded px-2 py-1.5 text-xs ${theme.textInput}`}
+                        />
+                        <input
+                          type="number"
+                          value={itemFormData.amount}
+                          onChange={(e) => setItemFormData({...itemFormData, amount: e.target.value})}
+                          min="0"
+                          step="0.01"
+                          placeholder="Amount"
+                          className={`w-full ${theme.bgCard} ${theme.borderInput} border rounded px-2 py-1.5 text-xs ${theme.textInput}`}
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleAddItem}
+                          className={`flex-1 ${theme.bgCard} border ${theme.borderInput} hover:${theme.borderHighlight} hover:${theme.accentText} rounded px-2 py-1.5 text-xs font-medium flex items-center justify-center gap-1 transition-colors`}
+                        >
+                          <Plus size={12} /> Add Item
+                        </button>
+                        <button
+                          onClick={handleCancelEdit}
+                          className={`flex-1 ${theme.bgCard} border ${theme.borderInput} hover:border-red-500 hover:text-red-500 rounded px-2 py-1.5 text-xs font-medium flex items-center justify-center gap-1 transition-colors`}
+                        >
+                          <X size={12} /> Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => setShowAddItemForm(true)}
+                      className={`w-full text-xs ${theme.textMuted} hover:${theme.textMain} py-2 border border-dashed ${theme.borderInput} rounded hover:${theme.borderHighlight} transition-colors flex items-center justify-center gap-1`}
+                    >
+                      <Plus size={12} /> Add Item Manually
+                    </button>
+                  )}
 
                 </div>
               )}
