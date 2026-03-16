@@ -2498,15 +2498,20 @@ export default function App() {
                   )}
 
                   {/* Generate Smart Items Button */}
-                  <button
-                    onClick={handleGenerateLineItems}
-                    disabled={isGeneratingItems}
-                    title="Generates 3-5 realistic line items based on your supplier and total amount"
-                    className={`w-full ${theme.bgInput} border ${theme.borderInput} hover:border-purple-600 rounded-md py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${theme.textMain}`}
-                  >
-                    <Brain size={16} className={isGeneratingItems ? 'animate-pulse' : ''} />
-                    <span>{isGeneratingItems ? 'Generating...' : 'Generate Smart Items'}</span>
-                  </button>
+                  <div className="relative group">
+                    <button
+                      onClick={handleGenerateLineItems}
+                      disabled={isGeneratingItems}
+                      className={`w-full ${theme.bgInput} border ${theme.borderInput} hover:border-purple-600 rounded-md py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${theme.textMain}`}
+                    >
+                      <Brain size={16} className={isGeneratingItems ? 'animate-pulse' : ''} />
+                      <span>{isGeneratingItems ? 'Generating...' : 'Generate Smart Items'}</span>
+                    </button>
+                    <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-56 px-3 py-2 ${theme.bgInput} ${theme.border} ${theme.textMuted} rounded-md shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 text-center leading-tight text-xs`}>
+                      Generates 3-5 realistic line items based on your supplier and total amount.
+                      <div className={`absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] border-4 border-transparent border-t-${isDarkMode ? 'gray-700' : 'gray-300'}`}></div>
+                    </div>
+                  </div>
 
                 </div>
               )}
