@@ -1045,12 +1045,22 @@ export default function App() {
         ? manualData.tax 
         : (total - (total / (1 + rate))).toFixed(2);
     
-    // Calculate line items from subtotal (before tax), not total
-    const subtotal = parseFloat(total) - parseFloat(tax);
-    const lines = [
-        { desc: "General Goods", qty: 1, amount: (subtotal * 0.7).toFixed(2) },
-        { desc: "Service Fee", qty: 1, amount: (subtotal * 0.3).toFixed(2) }
-    ];
+    // Use invoice line items if they exist, otherwise generate default items
+    let lines;
+    if (lineItems && lineItems.length > 0) {
+      // Use the same line items from the invoice
+      lines = lineItems.map(item => ({ ...item }));
+    } else if (previewData.lines && previewData.lines.length > 0 && previewData.type === 'INVOICE') {
+      // Use line items from preview data if available
+      lines = previewData.lines.map(item => ({ ...item }));
+    } else {
+      // Calculate line items from subtotal (before tax), not total
+      const subtotal = parseFloat(total) - parseFloat(tax);
+      lines = [
+          { desc: "General Goods", qty: 1, amount: (subtotal * 0.7).toFixed(2) },
+          { desc: "Service Fee", qty: 1, amount: (subtotal * 0.3).toFixed(2) }
+      ];
+    }
 
     return {
       type: 'PO',
@@ -1679,6 +1689,9 @@ export default function App() {
            {/* Calculate subtotal from line items */}
            {(() => {
              const subtotal = previewData.lines.reduce((sum, line) => sum + parseFloat(line.amount), 0);
+             const taxAmount = parseFloat(previewData.tax);
+             const finalTotal = subtotal + taxAmount;
+             
              return (
                <>
                  <div className="flex justify-between text-sm">
@@ -1691,7 +1704,7 @@ export default function App() {
                  </div>
                  <div className="flex justify-between text-xl font-bold border-t border-gray-800 pt-2 mt-2">
                    <span>Total</span>
-                   <span>{formatCurrency(previewData.total, REGIONS[region].currency)}</span>
+                   <span>{formatCurrency(finalTotal.toFixed(2), REGIONS[region].currency)}</span>
                  </div>
                </>
              );
