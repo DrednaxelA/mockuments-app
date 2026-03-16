@@ -269,7 +269,7 @@ const getRandomElement = (arr) => arr[Math.floor(Math.random() * arr.length)];
 async function generateSmartLineItems(supplier, total) {
   // Initialize Gemini AI
   const genAI = new GoogleGenerativeAI(process.env.REACT_APP_GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+  const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
   
   // Create the prompt
   const prompt = `Generate 3-5 realistic line items for a ${supplier} invoice totaling approximately ${total}.
@@ -461,8 +461,8 @@ export default function App() {
     bgSidebar: 'bg-[#FFFFFF]',
     bgSidebarHover: 'hover:bg-[#FFFFFF]/50',
     bgPanel: 'bg-[#FFFFFF]',
-    bgInput: 'bg-[#F3F4F6]', 
-    bgCard: 'bg-[#E5E7EB]', 
+    bgInput: 'bg-[#F3F4F6]',
+    bgCard: 'bg-[#E5E7EB]',
     bgPreview: 'bg-[#E5E7EB]',
     textMain: 'text-gray-900',
     textMuted: 'text-gray-500',
@@ -475,9 +475,10 @@ export default function App() {
     logoIcon: 'text-white',
     accentText: 'text-[#FF5A02]',
     accentBg: 'bg-[#FFF0E6]',
-    navHoverBg: 'hover:bg-gray-100', 
-    navHoverBorder: 'hover:border-gray-400' 
+    navHoverBg: 'hover:bg-gray-100',
+    navHoverBorder: 'hover:border-gray-400'
   };
+
 
   // --- Smart Line Items Handler ---
   const handleGenerateLineItems = async () => {
@@ -1163,16 +1164,21 @@ export default function App() {
         amount: item.amount
       }));
       
-      // Recalculate total from line items
-      const itemsTotal = lineItems.reduce((sum, item) => sum + parseFloat(item.amount), 0);
-      data.total = itemsTotal.toFixed(2);
+      // Calculate subtotal from line items
+      const subtotal = lineItems.reduce((sum, item) => sum + parseFloat(item.amount), 0);
       
-      // Recalculate tax if auto-calc is on
+      // Calculate or use existing tax
+      let taxAmount;
       if (manualData.autoCalcTax) {
         const rate = REGIONS[region].taxRate;
-        const totalVal = parseFloat(data.total);
-        data.tax = (totalVal - (totalVal / (1 + rate))).toFixed(2);
+        taxAmount = parseFloat((subtotal * rate).toFixed(2));
+      } else {
+        taxAmount = parseFloat(manualData.tax || data.tax || '0.00');
       }
+      
+      // Total = Subtotal + Tax
+      data.total = (subtotal + taxAmount).toFixed(2);
+      data.tax = taxAmount.toFixed(2);
     }
 
     setPreviewData(data);
@@ -1452,6 +1458,9 @@ export default function App() {
          <div className={`${t.borderStyle} border-t-2 border-gray-800 pt-2 space-y-1 ${t.totalWeight}`}>
            {(() => {
              const subtotal = previewData.lines.reduce((sum, line) => sum + parseFloat(line.amount), 0);
+             const taxAmount = parseFloat(previewData.tax);
+             const finalTotal = subtotal + taxAmount;
+             
              return (
                <>
                  <div className="flex justify-between">
@@ -1464,7 +1473,7 @@ export default function App() {
                  </div>
                  <div className={`flex justify-between ${t.totalSize} ${t.totalWeight} mt-2`}>
                    <span>TOTAL</span>
-                   <span>{formatCurrency(previewData.total, REGIONS[region].currency)}</span>
+                   <span>{formatCurrency(finalTotal.toFixed(2), REGIONS[region].currency)}</span>
                  </div>
                </>
              );
@@ -1753,18 +1762,28 @@ export default function App() {
 
       <div className="flex justify-end relative z-10">
         <div className="w-1/2 space-y-2">
-           <div className="flex justify-between text-sm">
-             <span>Subtotal</span>
-             <span>{formatCurrency(parseFloat(data.total) - parseFloat(data.tax), REGIONS[region].currency)}</span>
-           </div>
-           <div className="flex justify-between text-sm">
-             <span>{REGIONS[region].taxLabel} ({REGIONS[region].taxRate*100}%)</span>
-             <span>{formatCurrency(data.tax, REGIONS[region].currency)}</span>
-           </div>
-           <div className="flex justify-between text-xl font-bold border-t border-gray-800 pt-2 mt-2">
-             <span>Total</span>
-             <span>{formatCurrency(data.total, REGIONS[region].currency)}</span>
-           </div>
+           {(() => {
+             const subtotal = data.lines.reduce((sum, line) => sum + parseFloat(line.amount), 0);
+             const taxAmount = parseFloat(data.tax);
+             const finalTotal = subtotal + taxAmount;
+             
+             return (
+               <>
+                 <div className="flex justify-between text-sm">
+                   <span>Subtotal</span>
+                   <span>{formatCurrency(subtotal.toFixed(2), REGIONS[region].currency)}</span>
+                 </div>
+                 <div className="flex justify-between text-sm">
+                   <span>{REGIONS[region].taxLabel} ({REGIONS[region].taxRate*100}%)</span>
+                   <span>{formatCurrency(data.tax, REGIONS[region].currency)}</span>
+                 </div>
+                 <div className="flex justify-between text-xl font-bold border-t border-gray-800 pt-2 mt-2">
+                   <span>Total</span>
+                   <span>{formatCurrency(finalTotal.toFixed(2), REGIONS[region].currency)}</span>
+                 </div>
+               </>
+             );
+           })()}
         </div>
       </div>
 
@@ -2319,6 +2338,9 @@ export default function App() {
                 <div className="flex items-center gap-2">
                   <FileText size={16} className={theme.accentText} />
                   <span className="text-sm font-bold">Line Items ({lineItems.length})</span>
+                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-purple-600 text-white tracking-wide">
+                    NEW
+                  </span>
                 </div>
                 <ChevronDown 
                   size={16} 
@@ -2329,16 +2351,6 @@ export default function App() {
               {showLineItems && (
                 <div className={`border-t ${theme.borderInput} p-3 space-y-3 animate-fade-in-up`}>
                   
-                  {/* Generate Button */}
-                  <button
-                    onClick={handleGenerateLineItems}
-                    disabled={isGeneratingItems}
-                    className={`w-full ${theme.bgInput} border ${theme.borderInput} hover:${theme.borderHighlight} hover:${theme.accentText} rounded-md py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${theme.textMain}`}
-                  >
-                    <Brain size={16} className={isGeneratingItems ? 'animate-pulse' : ''} />
-                    <span>{isGeneratingItems ? 'Generating...' : 'Generate Smart Items'}</span>
-                  </button>
-
                   {/* Line Items List */}
                   <div className="space-y-2 max-h-80 overflow-y-auto">
                     {lineItems.map(item => (
@@ -2471,6 +2483,16 @@ export default function App() {
                       <Plus size={12} /> Add Item Manually
                     </button>
                   )}
+
+                  {/* Generate Smart Items Button */}
+                  <button
+                    onClick={handleGenerateLineItems}
+                    disabled={isGeneratingItems}
+                    className={`w-full ${theme.bgInput} border ${theme.borderInput} hover:border-purple-600 rounded-md py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${theme.textMain}`}
+                  >
+                    <Brain size={16} className={isGeneratingItems ? 'animate-pulse' : ''} />
+                    <span>{isGeneratingItems ? 'Generating...' : 'Generate Smart Items'}</span>
+                  </button>
 
                 </div>
               )}
