@@ -269,7 +269,7 @@ const getRandomElement = (arr) => arr[Math.floor(Math.random() * arr.length)];
 async function generateSmartLineItems(supplier, total) {
   // Initialize Gemini AI
   const genAI = new GoogleGenerativeAI(process.env.REACT_APP_GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
   
   // Create the prompt
   const prompt = `Generate 3-5 realistic line items for a ${supplier} invoice totaling approximately ${total}.
@@ -722,8 +722,10 @@ export default function App() {
   }, [bankTransactionCount, activeCategory, previewData.type]);
 
   // NEW: Update preview directly when manual data changes (don't regenerate everything)
+  // This effect is ONLY for COSTS/SALES receipts and invoices, NOT for Bank/Supplier statements
   useEffect(() => {
-    if (mode === 'MANUAL' && !isGenerating && previewData.supplier) {
+    if (mode === 'MANUAL' && !isGenerating && previewData.supplier && 
+        activeCategory !== 'BANK' && activeCategory !== 'SUPPLIER') {
       // Handle supplier/customer differently for Sales vs Costs
       let supplier, customerName;
       
@@ -731,11 +733,8 @@ export default function App() {
         // Sales: manualData.supplier goes to customerName (Bill To), supplier stays as company name
         customerName = manualData.supplier?.trim() || 'Acme Corp';
         supplier = stableRandomSupplier || previewData.supplier; // Keep existing supplier
-      } else if (activeCategory === 'BANK') {
-        supplier = manualData.supplier?.trim() || 'Global Bank Inc.';
-        customerName = 'Generic Corp Ltd.';
       } else {
-        // Costs/Supplier: manualData.supplier goes to supplier (vendor)
+        // Costs: manualData.supplier goes to supplier (vendor)
         supplier = manualData.supplier?.trim() || "Joe's Coffee";
         customerName = 'Generic Corp Ltd.';
       }
@@ -757,26 +756,22 @@ export default function App() {
         tax = manualData.tax || '20.00';
       }
       
-      // Only update lines for receipts/invoices, not for bank/supplier statements
-      const shouldUpdateLines = activeCategory !== 'BANK' && activeCategory !== 'SUPPLIER';
-      
       // Use actual line items if they exist, otherwise use defaults
+      // (This effect only runs for COSTS/SALES, not BANK/SUPPLIER)
       let linesToUse;
-      if (shouldUpdateLines && lineItems.length > 0) {
+      if (lineItems.length > 0) {
         linesToUse = lineItems.map(item => ({
           desc: item.desc,
           qty: item.qty,
           amount: item.amount
         }));
-      } else if (shouldUpdateLines) {
+      } else {
         // Fallback to default lines if no line items
         const subtotal = parseFloat(total) - parseFloat(tax);
         linesToUse = [
           { desc: "General Goods", qty: 1, amount: (subtotal * 0.7).toFixed(2) },
           { desc: "Service Fee", qty: 1, amount: (subtotal * 0.3).toFixed(2) }
         ];
-      } else {
-        linesToUse = prev.lines;
       }
       
       setPreviewData(prev => ({
@@ -1184,9 +1179,9 @@ export default function App() {
   };
 
   const captureCanvas = async (fileName, zip, tempData = null) => {
-    // In MANUAL mode or when capturing the current preview, use visible element
-    // In AUTO mode with temp data, use hidden element
-    const useHiddenCapture = tempData && mode === 'AUTO';
+    // When tempData is provided, always use hidden element to render it
+    // When tempData is null, capture the visible preview
+    const useHiddenCapture = !!tempData;
     
     if (useHiddenCapture) {
       // Render to hidden element
