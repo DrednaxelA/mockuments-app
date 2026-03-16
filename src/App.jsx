@@ -2501,6 +2501,7 @@ export default function App() {
                   <button
                     onClick={handleGenerateLineItems}
                     disabled={isGeneratingItems}
+                    title="Generates 3-5 realistic line items based on your supplier and total amount"
                     className={`w-full ${theme.bgInput} border ${theme.borderInput} hover:border-purple-600 rounded-md py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${theme.textMain}`}
                   >
                     <Brain size={16} className={isGeneratingItems ? 'animate-pulse' : ''} />
