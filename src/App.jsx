@@ -5,9 +5,8 @@ import {
   Globe, 
   Layers, 
   Download, 
-  RefreshCw, 
-  ScanLine, 
-  ShoppingCart, 
+  RefreshCw,
+  ShoppingCart,
   Archive,
   Calculator,
   CheckCircle2,
@@ -2003,8 +2002,8 @@ export default function App() {
         <div className={`absolute top-0 left-0 h-full w-20 hover:w-56 ${theme.bgSidebar} ${theme.bgSidebarHover} backdrop-blur-xl ${theme.border} border-r transition-all duration-500 ease-in-out flex flex-col overflow-hidden group shadow-2xl z-50`}>
           
           <div className="h-20 flex items-center px-6 gap-4 flex-shrink-0">
-            <div className={`w-8 h-8 ${theme.logoBg} rounded-md flex items-center justify-center flex-shrink-0`}>
-              <ScanLine className={`${theme.logoIcon} w-5 h-5`} />
+            <div className="w-8 h-8 rounded-md overflow-hidden flex-shrink-0">
+              <img src="/logo.png" alt="Dokuments logo" className="w-full h-full object-cover" />
             </div>
             <span className={`font-bold text-lg tracking-wide ${theme.textMain} opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-75 whitespace-nowrap`}>
               Dokuments
