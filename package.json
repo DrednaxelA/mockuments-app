@@ -1,5 +1,5 @@
 {
-  "name": "mockuments-ocr-tool",
+  "name": "dokuments-ocr-tool",
   "version": "2.2.0",
   "private": true,
   "dependencies": {
