@@ -1,6 +1,6 @@
-Mockuments 📄
+Dokuments 📄
 
-Mockuments is a specialized React-based tool designed for Content Designers and QA Engineers to generate high-fidelity "scanned-style" dummy documents. It is specifically built to test OCR (Optical Character Recognition) engines by simulating physical document artifacts.
+Dokuments is a specialized React-based tool designed for Content Designers and QA Engineers to generate high-fidelity "scanned-style" dummy documents. It is specifically built to test OCR (Optical Character Recognition) engines by simulating physical document artifacts.
 
 🚀 Features
 
