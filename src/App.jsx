@@ -1292,7 +1292,7 @@ export default function App() {
     
     const count = effectiveQuantity;
     const dateStr = new Date().toISOString().slice(0,10);
-    const batchName = `Mockuments_Batch_${dateStr}`;
+    const batchName = `Dokuments_Batch_${dateStr}`;
 
     const isZipMode = count > 1 || (activeCategory === 'SUPPLIER' && includeSupportDocs) || (activeCategory === 'BANK' && includeBankReceipts) || (mode === 'MANUAL' && generatePO);
 
@@ -2007,7 +2007,7 @@ export default function App() {
               <ScanLine className={`${theme.logoIcon} w-5 h-5`} />
             </div>
             <span className={`font-bold text-lg tracking-wide ${theme.textMain} opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-75 whitespace-nowrap`}>
-              Mockuments
+              Dokuments
             </span>
           </div>
 
